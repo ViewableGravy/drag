@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTileContext } from "../../App";
-import { getOverlappingInformation, getRearrangedTiles } from "./helpers";
+import { useVerticalScrollDistanceSinceLastRender } from "../../hooks/useScrollDisatnceSinceLastRender";
 
 export type TDragstate = {
   offset: {
@@ -60,6 +60,25 @@ const margin = (ref: React.RefObject<HTMLDivElement>, side: 'top' | 'left' | 'ri
   return Number(margin.substring(0, margin.length - 2))
 }
 
+const useMousePositionRef = () => {
+  const positionRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      positionRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      }
+    }
+
+    window.addEventListener('mousemove', handler);
+
+    return () => window.removeEventListener('mousemove', handler);
+  }, [])
+
+  return positionRef;
+}
+
 export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
   [key in keyof HTMLElementEventMap]?: (event: Event, state: TDragstate) => void
 } & {
@@ -71,6 +90,8 @@ export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
     isDragging: false,
   })
   const { onDragComplete, ..._options } = options;
+  const { distance } = useVerticalScrollDistanceSinceLastRender({ debounceTime: 1000/120 });
+  const mousePositionRef = useMousePositionRef();
 
   const handleMouseDown = (event: MouseEvent) => {
     dragState.current = {
@@ -146,6 +167,26 @@ export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
       }
     }
   }, [ref.current, ...dependencies])
+
+  useEffect(() => {
+    if (dragState.current.isDragging) {
+      //update offset
+      dragState.current.offset = {
+        ...dragState.current.offset,
+        y: dragState.current.offset.y - distance,
+      }
+
+      const { x, y } = mousePositionRef.current;
+
+      //follow mouse
+      const node = ref.current
+      if (node) {
+        node.style.left = `${x - dragState.current.offset.x}px`
+        node.style.top = `${y - dragState.current.offset.y}px`
+      }
+    }
+
+  }, [distance])
 
   return { isDragging, stopDrag: handleMouseUp }
 }
