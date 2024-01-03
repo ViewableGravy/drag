@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTileContext } from "../../App";
 import { getOverlappingInformation, getRearrangedTiles } from "./helpers";
 
@@ -51,6 +51,15 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
   }
 }
 
+const capitalize = <T extends string>(str: T): Capitalize<T> => str.charAt(0).toUpperCase() + str.slice(1) as Capitalize<T>;
+
+const margin = (ref: React.RefObject<HTMLDivElement>, side: 'top' | 'left' | 'right' | 'bottom') => {
+  const margin = ref.current?.style[`margin${capitalize(side)}`];
+  if (!margin) return 0;
+
+  return Number(margin.substring(0, margin.length - 2))
+}
+
 export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
   [key in keyof HTMLElementEventMap]?: (event: Event, state: TDragstate) => void
 } & {
@@ -67,10 +76,13 @@ export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
     dragState.current = {
       isDragging: true,
       offset: {
-        x: event.clientX - (ref.current?.offsetLeft || 0),
-        y: event.clientY - (ref.current?.offsetTop || 0),
+        x: event.clientX - (ref.current?.offsetLeft || 0) + margin(ref, 'left'),
+        y: event.clientY - (ref.current?.offsetTop || 0) + margin(ref, 'top'),
       },
     }
+
+    handleMouseMove(event);
+
     setIsDragging(dragState.current.isDragging)
   }
 
