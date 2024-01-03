@@ -124,7 +124,7 @@ const getInsertIndex: TileHelpers.TGetInsertIndex = (interceptingIndex, isBefore
 
 export const getCurrentNodeInformation: TileHelpers.TGetCurrentNodeInformation = (tile, tiles, offset) => {
   const node = tile.ref!.current!;
-  const nodeMiddle = window.scrollY + node.offsetHeight / 2 + (offset.y || 0);
+  const nodeMiddle = (node.offsetHeight / 2) + (offset.y || 0);
   const nodeIndex = tiles.findIndex(({ identifier }) => identifier === tile.identifier);
   return {
     node,
@@ -135,7 +135,7 @@ export const getCurrentNodeInformation: TileHelpers.TGetCurrentNodeInformation =
 
 const getIndexClosestToMiddle: TileHelpers.TGetIndexClosestToMiddle = ({ tiles, nodeMiddle, nodeIndex }) => {
   const middleOfNodes = tiles.map(({ ref }, index) => ({
-    middle: ref!.current!.getBoundingClientRect().y + ref!.current!.offsetHeight / 2,
+    middle: ref!.current!.offsetTop + (ref!.current!.offsetHeight / 2),
     index,
   }))
   .sort((a, b) => Math.abs(nodeMiddle - a.middle) - Math.abs(nodeMiddle - b.middle))
@@ -146,7 +146,8 @@ const getIndexClosestToMiddle: TileHelpers.TGetIndexClosestToMiddle = ({ tiles, 
 
 const getShouldGoBefore: TileHelpers.TGetShouldGoBefore = ({ index, tiles, nodeMiddle }) => {
   const node = tiles[index].ref!.current!;
-  const interceptingNodeMiddle = window.scrollY + node.getBoundingClientRect().y + node.offsetHeight / 2;
+  // const interceptingNodeMiddle = window.scrollY + node.getBoundingClientRect().y + node.offsetHeight / 2;
+  const interceptingNodeMiddle = node.offsetTop + (node.offsetHeight / 2);
 
   return nodeMiddle < interceptingNodeMiddle;
 }

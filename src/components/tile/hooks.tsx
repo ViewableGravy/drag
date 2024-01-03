@@ -53,7 +53,7 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
 
 const capitalize = <T extends string>(str: T): Capitalize<T> => str.charAt(0).toUpperCase() + str.slice(1) as Capitalize<T>;
 
-const margin = (ref: React.RefObject<HTMLDivElement>, side: 'top' | 'left' | 'right' | 'bottom') => {
+const margin = (ref: React.RefObject<HTMLDivElement>, side: 'top' | 'left' | 'right' | 'bottom' | 'inline' | 'block') => {
   const margin = ref.current?.style[`margin${capitalize(side)}`];
   if (!margin) return 0;
 
@@ -77,7 +77,7 @@ export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
       isDragging: true,
       offset: {
         x: event.clientX - (ref.current?.offsetLeft || 0) + margin(ref, 'left'),
-        y: event.clientY - (ref.current?.offsetTop || 0) + margin(ref, 'top'),
+        y: event.clientY - (ref.current?.offsetTop || 0) + margin(ref, 'block'),
       },
     }
 
