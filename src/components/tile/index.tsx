@@ -29,7 +29,7 @@ export const Tile: TTile = ({ registerRef, identifier }) => {
   const baseStyle: React.CSSProperties = useMemo(() => ({
     height: Math.min(Math.max(Math.random() * 300, 60), 300) + 'px',
     width: '90vw',
-    margin: 10,
+    marginBlock: 10,
     backgroundColor: color,
     color: 'black',
     userSelect: 'none',

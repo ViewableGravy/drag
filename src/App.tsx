@@ -107,12 +107,12 @@ function App() {
 
   /***** RENDER *****/
   return (
-    <div style={{ position: 'relative', padding: 50 }}>
+    <div style={{ position: 'relative', padding: '5vw', overflow: 'hidden' }}>
       <TileContext.Provider value={contextValues}>
         {tiles.map((tile, index) => (
           <Fragment key={tile.identifier}>
             <InjectElementIntoJSX
-              element={<div key={index} style={{ height: 2, width: 'calc(100vw - 60px)', backgroundColor: 'lightblue', marginLeft: -20 }} />}
+              element={<div key={index} style={{ height: 2, width: '92vw', backgroundColor: 'lightblue', marginLeft: -20 }} />}
               start={estimationInformation.interceptingIndex === index && estimationInformation.shouldGoBefore}
               end={estimationInformation.interceptingIndex === index && !estimationInformation.shouldGoBefore}
             >
