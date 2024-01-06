@@ -1,6 +1,6 @@
 import React, { Fragment, useCallback, useMemo, useState } from 'react'
 import { Tile } from './components/tile'
-import { TileHelpers, getCurrentNodeInformation, getRearrangedTiles, handleOverlap } from './components/tile/helpers';
+import { TileHelpers, getCurrentNodeInformation, getRearrangedTiles, tilePositionInformation } from './components/tile/helpers';
 import { InjectElementIntoJSX } from './components/InjectElementIntoJSX';
 
 type TCompleteTileDrag = (props: {
@@ -58,7 +58,7 @@ const generateXEmptyTiles = (x: number) => {
 function App() {
   /***** STATE *****/
   const [estimationInformation, setEstimationInformation] = useState({
-    interceptingIndex: -1,
+    closestVerticalTileIndex: -1,
     shouldGoBefore: true,
   });
   const [tiles, setTiles] = useState<Array<TileHelpers.TTileObject>>(generateXEmptyTiles(20));
@@ -79,7 +79,7 @@ function App() {
     }));
 
     setEstimationInformation({
-      interceptingIndex: -1,
+      closestVerticalTileIndex: -1,
       shouldGoBefore: true,
     });
   }, []);
@@ -87,15 +87,16 @@ function App() {
   const handleTileMove = useCallback<handleTileMove>((identifier, offset) => {
     const tile = tiles.find(({ identifier: _identifier }) => _identifier === identifier)!;
 
-    //do nothing for now
-    handleOverlap({ reorder: ({ interceptingIndex, shouldGoBefore }) => {
+    const options = { tiles, ...getCurrentNodeInformation(tile, tiles, offset) };
+
+    tilePositionInformation(options, ({ closestVerticalTileIndex, shouldGoBefore }) => {
       setEstimationInformation({
-        interceptingIndex,
+        closestVerticalTileIndex,
         shouldGoBefore,
       });
 
       return tiles;
-    }, tiles, ...getCurrentNodeInformation(tile, tiles, offset) })
+    })
   }, [tiles])
 
   const contextValues = {
@@ -113,8 +114,8 @@ function App() {
           <Fragment key={tile.identifier}>
             <InjectElementIntoJSX
               element={<div key={index} style={{ height: 2, width: '92vw', backgroundColor: 'lightblue', marginLeft: -20 }} />}
-              start={estimationInformation.interceptingIndex === index && estimationInformation.shouldGoBefore}
-              end={estimationInformation.interceptingIndex === index && !estimationInformation.shouldGoBefore}
+              start={estimationInformation.closestVerticalTileIndex === index && estimationInformation.shouldGoBefore}
+              end={estimationInformation.closestVerticalTileIndex === index && !estimationInformation.shouldGoBefore}
             >
               <Tile
                 key={tile.identifier}

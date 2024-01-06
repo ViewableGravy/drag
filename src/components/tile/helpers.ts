@@ -51,7 +51,7 @@ export namespace TileHelpers {
   }
 
   export type TReorder = (options: {
-    interceptingIndex: number, 
+    closestVerticalTileIndex: number, 
     shouldGoBefore: boolean,
     tiles: Readonly<Array<TTileObject>>,
     nodeIndex: number,
@@ -61,16 +61,15 @@ export namespace TileHelpers {
    * If there is no need to perform a reorder, simply return the existing tiles array
    */
   export type THandleOverlap = (options: {
-    reorder?: (options: {
-      interceptingIndex: number, 
-      shouldGoBefore: boolean,
-      tiles: Readonly<Array<TTileObject>>,
-      nodeIndex: number,
-    }) => Array<TTileObject>,
     tiles: Readonly<Array<TTileObject>>,
     nodeIndex: number,
     nodeMiddle: number,
-  }) => Array<TTileObject>;
+  }, callback: (options: {
+    closestVerticalTileIndex: number, 
+    shouldGoBefore: boolean,
+    tiles: Readonly<Array<TTileObject>>,
+    nodeIndex: number,
+  }) => Array<TTileObject>) => Array<TTileObject>;
 }
 
 export const getOverlappingInformation: TileHelpers.TGetOverlappingInformation = (tile, tiles) => {
@@ -152,29 +151,29 @@ const getShouldGoBefore: TileHelpers.TGetShouldGoBefore = ({ index, tiles, nodeM
   return nodeMiddle < interceptingNodeMiddle;
 }
 
-const reorder: TileHelpers.TReorder = ({ interceptingIndex, shouldGoBefore, tiles, nodeIndex }) => {
+const reorder: TileHelpers.TReorder = ({ closestVerticalTileIndex, shouldGoBefore, tiles, nodeIndex }) => {
   const newTiles = [...tiles];
 
-  const isTileIndexBeforeInterceptingIndex = nodeIndex < interceptingIndex;
+  const isTileIndexBeforeInterceptingIndex = nodeIndex < closestVerticalTileIndex;
 
   //remove this tile from the array
   const removed = newTiles.splice(nodeIndex, 1)[0];
-  const insertIndex = getInsertIndex(interceptingIndex, isTileIndexBeforeInterceptingIndex, shouldGoBefore);
+  const insertIndex = getInsertIndex(closestVerticalTileIndex, isTileIndexBeforeInterceptingIndex, shouldGoBefore);
   newTiles.splice(insertIndex, 0, removed);
 
   return newTiles;
 }
 
-export const handleOverlap: TileHelpers.THandleOverlap = ({ reorder, tiles, nodeIndex, nodeMiddle }) => {
-  const interceptingIndex = getIndexClosestToMiddle({ tiles, nodeMiddle, nodeIndex });
-  const shouldGoBefore = getShouldGoBefore({ index: interceptingIndex, tiles, nodeMiddle });
+export const tilePositionInformation: TileHelpers.THandleOverlap = ({ tiles, nodeIndex, nodeMiddle }, callback) => {
+  const closestVerticalTileIndex = getIndexClosestToMiddle({ tiles, nodeMiddle, nodeIndex });
+  const shouldGoBefore = getShouldGoBefore({ index: closestVerticalTileIndex, tiles, nodeMiddle });
 
-  return reorder?.({ interceptingIndex, shouldGoBefore, tiles, nodeIndex }) ?? [...tiles];
+  return callback?.({ closestVerticalTileIndex, shouldGoBefore, tiles, nodeIndex }) ?? [...tiles];
 }
 
 export const getRearrangedTiles: TileHelpers.TGetRearrangedTiles = ({
   tile,
   tiles,
   offset
-}) => handleOverlap({ reorder, tiles, ...getCurrentNodeInformation(tile, tiles, offset) });
+}) => tilePositionInformation({ tiles, ...getCurrentNodeInformation(tile, tiles, offset) }, reorder);
 
