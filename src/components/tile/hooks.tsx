@@ -160,7 +160,7 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
   useScrollOffsetEffect(({ offset }) => {
     dragState.current.scrollOffset = offset
     handleUpdatePosition();
-  }, [isDragging]);
+  }, [isDragging, ...dependencies]);
 
   useEffect(() => {
     const node = ref.current
@@ -169,14 +169,6 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
       node.addEventListener('mousemove', handleMouseMove)
       node.addEventListener('mouseup', handleMouseUp)
       node.addEventListener('mouseleave', handleMouseUp)
-
-      // Object.entries(options).forEach(([key, value]) => {
-      //   const handler = (event: Event) => {
-      //     value(event, dragState.current)
-      //   }
-
-      //   node.addEventListener(key, handler)
-      // });
     }
 
     return () => {
@@ -185,14 +177,6 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
         node.removeEventListener('mousemove', handleMouseMove)
         node.removeEventListener('mouseup', handleMouseUp)
         node.removeEventListener('mouseleave', handleMouseUp)
-
-        // Object.entries(options).forEach(([key, value]) => {
-        //   const handler = (event: Event) => {
-        //     value(event, dragState.current)
-        //   }
-
-        //   node.removeEventListener(key, handler)
-        // });
       }
     }
   }, [ref.current, ...dependencies])
