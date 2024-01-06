@@ -61,7 +61,7 @@ function App() {
     interceptingIndex: -1,
     shouldGoBefore: true,
   });
-  const [tiles, setTiles] = useState<Array<TileHelpers.TTileObject>>(generateXEmptyTiles(10));
+  const [tiles, setTiles] = useState<Array<TileHelpers.TTileObject>>(generateXEmptyTiles(20));
 
   /***** FUNCTIONS *****/
   const registerRef = useCallback<TUpdateTileInformation>((identifier) => (tile) => {

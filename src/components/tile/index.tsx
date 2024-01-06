@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {  useTileContext } from "../../App";
 import { useDraggable, useTileDraggableCallbacks } from "./hooks";
+import { useScrollEffect } from "../../hooks/useScrollEffect";
 
 type TTile = React.FC<{
   registerRef: (tile: React.RefObject<HTMLDivElement>) => void,
@@ -17,11 +18,13 @@ export const Tile: TTile = ({ registerRef, identifier }) => {
 
   const { tiles } = useTileContext();
   const [ color ] = useState(() => `#${Math.floor(Math.random()*16777215).toString(16)}`)
-  const { onDragComplete, onMouseMove } = useTileDraggableCallbacks({ tile, color })
+  const { onDragComplete, onMouseMove, onScroll } = useTileDraggableCallbacks({ tile, color })
   const { isDragging } = useDraggable(ref, {
     mousemove: onMouseMove,
     onDragComplete: onDragComplete
   }, [tiles])
+
+  useScrollEffect(onScroll(isDragging), [isDragging])
 
   /***** EFFECTS *****/
   useEffect(() => registerRef(ref), [])

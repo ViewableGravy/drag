@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTileContext } from "../../App";
-import { useVerticalScrollDistanceSinceLastRender } from "../../hooks/useScrollDisatnceSinceLastRender";
+import { useScrollEffect } from "../../hooks/useScrollEffect";
 
 export type TDragstate = {
   offset: {
@@ -20,6 +20,16 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
   const { ref } = tile;
 
   const onMouseMove = (_: Event, { isDragging }: TDragstate) => {
+    if (!isDragging) return;
+    if (!ref.current) return;
+
+    handleTileMove(tile.identifier, {
+      x: parseInt(ref.current.style.left),
+      y: parseInt(ref.current.style.top),
+    });
+  }
+
+  const onScroll = (isDragging: boolean) => () => {
     if (!isDragging) return;
     if (!ref.current) return;
 
@@ -48,6 +58,7 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
   return {
     onMouseMove,
     onDragComplete,
+    onScroll
   }
 }
 
@@ -60,65 +71,75 @@ const margin = (ref: React.RefObject<HTMLDivElement>, side: 'top' | 'left' | 'ri
   return Number(margin.substring(0, margin.length - 2))
 }
 
-const useMousePositionRef = () => {
-  const positionRef = useRef({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const handler = (event: MouseEvent) => {
-      positionRef.current = {
-        x: event.clientX,
-        y: event.clientY,
-      }
-    }
 
-    window.addEventListener('mousemove', handler);
-
-    return () => window.removeEventListener('mousemove', handler);
-  }, [])
-
-  return positionRef;
-}
-
-export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
+type TUseDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
   [key in keyof HTMLElementEventMap]?: (event: Event, state: TDragstate) => void
 } & {
   onDragComplete?: (state: TDragstate) => void,
 }, dependencies: any[]) => {
+  isDragging: boolean,
+  stopDrag: (event: MouseEvent) => void,
+}
+
+export const useDraggable: TUseDraggable = (ref, { onDragComplete, ...options }, dependencies) => {
+  /***** STATE *****/
   const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef({
     offset: { x: 0, y: 0 },
+    scrollOffset: { x: 0, y: 0 },
+    mouseOffset: { clientX: 0, clientY: 0 },
     isDragging: false,
-  })
-  const { onDragComplete, ..._options } = options;
-  const { distance } = useVerticalScrollDistanceSinceLastRender({ debounceTime: 1000/120 });
-  const mousePositionRef = useMousePositionRef();
+  });
+
+  useScrollEffect(({ offset }) => {
+    dragState.current.scrollOffset = offset
+    handleUpdatePosition();
+  }, [isDragging]);
 
   const handleMouseDown = (event: MouseEvent) => {
     dragState.current = {
+      ...dragState,
       isDragging: true,
       offset: {
         x: event.clientX - (ref.current?.offsetLeft || 0) + margin(ref, 'left'),
         y: event.clientY - (ref.current?.offsetTop || 0) + margin(ref, 'block'),
       },
+      mouseOffset: {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      },
+      scrollOffset: {
+        x: 0,
+        y: 0,
+      }
     }
 
-    handleMouseMove(event);
+    handleUpdatePosition();
 
     setIsDragging(dragState.current.isDragging)
   }
 
   const handleMouseMove = (event: MouseEvent) => {
-    if (dragState.current.isDragging) {
-      //follow mouse
-      const node = ref.current
-      if (node) {
-        node.style.left = `${event.clientX - dragState.current.offset.x}px`
-        node.style.top = `${event.clientY - dragState.current.offset.y}px`
-      }
-
-      //prevent text selection
-      event.preventDefault()
+    dragState.current.mouseOffset = {
+      clientX: event.clientX,
+      clientY: event.clientY,
     }
+
+    event.preventDefault()
+
+    handleUpdatePosition();
+  }
+
+  const handleUpdatePosition = () => {
+    const { offset, mouseOffset, scrollOffset } = dragState.current;
+    const node = ref.current;
+
+    if (!dragState.current.isDragging) return;
+    if (!node) return;
+
+    node.style.left = `${mouseOffset.clientX - offset.x + scrollOffset.x}px`
+    node.style.top = `${mouseOffset.clientY - offset.y + scrollOffset.y}px`
   }
 
   const handleMouseUp = (event: MouseEvent) => {
@@ -141,7 +162,7 @@ export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
       node.addEventListener('mouseup', handleMouseUp)
       node.addEventListener('mouseleave', handleMouseUp)
 
-      Object.entries(_options).forEach(([key, value]) => {
+      Object.entries(options).forEach(([key, value]) => {
         const handler = (event: Event) => {
           value(event, dragState.current)
         }
@@ -157,7 +178,7 @@ export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
         node.removeEventListener('mouseup', handleMouseUp)
         node.removeEventListener('mouseleave', handleMouseUp)
 
-        Object.entries(_options).forEach(([key, value]) => {
+        Object.entries(options).forEach(([key, value]) => {
           const handler = (event: Event) => {
             value(event, dragState.current)
           }
@@ -167,26 +188,6 @@ export const useDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
       }
     }
   }, [ref.current, ...dependencies])
-
-  useEffect(() => {
-    if (dragState.current.isDragging) {
-      //update offset
-      dragState.current.offset = {
-        ...dragState.current.offset,
-        y: dragState.current.offset.y - distance,
-      }
-
-      const { x, y } = mousePositionRef.current;
-
-      //follow mouse
-      const node = ref.current
-      if (node) {
-        node.style.left = `${x - dragState.current.offset.x}px`
-        node.style.top = `${y - dragState.current.offset.y}px`
-      }
-    }
-
-  }, [distance])
 
   return { isDragging, stopDrag: handleMouseUp }
 }
