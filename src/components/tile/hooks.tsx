@@ -1,14 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTileContext } from "../../App";
-import { useScrollEffect } from "../../hooks/useScrollEffect";
+import { useScrollOffsetEffect } from "../../hooks/useScrollEffect";
 
 export type TDragstate = {
   offset: {
     x: number,
     y: number,
   },
+  scrollOffset: {
+    x: number,
+    y: number,
+  },
+  mouseOffset: {
+    clientX: number,
+    clientY: number,
+  },
   isDragging: boolean,
-}
+};
 
 export const useTileDraggableCallbacks = ({ tile, color } : { 
   color: string, 
@@ -19,9 +27,11 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
   const { handleTileDrop, handleTileMove } = useTileContext();
   const { ref } = tile;
 
-  const onMouseMove = (_: Event, { isDragging }: TDragstate) => {
+  const onMouseMove = ({ isDragging }: TDragstate) => (_: Event) => {
     if (!isDragging) return;
     if (!ref.current) return;
+
+    console.log('here')
 
     handleTileMove(tile.identifier, {
       x: parseInt(ref.current.style.left),
@@ -73,29 +83,33 @@ const margin = (ref: React.RefObject<HTMLDivElement>, side: 'top' | 'left' | 'ri
 
 
 
-type TUseDraggable = (ref: React.RefObject<HTMLDivElement>, options: {
-  [key in keyof HTMLElementEventMap]?: (event: Event, state: TDragstate) => void
-} & {
+type TUseDraggable = (ref: React.RefObject<HTMLDivElement>, callbacks: {
   onDragComplete?: (state: TDragstate) => void,
 }, dependencies: any[]) => {
   isDragging: boolean,
-  stopDrag: (event: MouseEvent) => void,
+  ref: React.MutableRefObject<TDragstate>
 }
 
-export const useDraggable: TUseDraggable = (ref, { onDragComplete, ...options }, dependencies) => {
+export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencies) => {
   /***** STATE *****/
-  const [isDragging, setIsDragging] = useState(false)
-  const dragState = useRef({
+  const dragState = useRef<TDragstate>({
     offset: { x: 0, y: 0 },
     scrollOffset: { x: 0, y: 0 },
     mouseOffset: { clientX: 0, clientY: 0 },
     isDragging: false,
   });
+  const [isDragging, setIsDragging] = useState(dragState.current.isDragging)
 
-  useScrollEffect(({ offset }) => {
-    dragState.current.scrollOffset = offset
-    handleUpdatePosition();
-  }, [isDragging]);
+  const handleUpdatePosition = () => {
+    const { offset, mouseOffset, scrollOffset } = dragState.current;
+    const node = ref.current;
+
+    if (!dragState.current.isDragging) return;
+    if (!node) return;
+
+    node.style.left = `${mouseOffset.clientX - offset.x + scrollOffset.x}px`
+    node.style.top = `${mouseOffset.clientY - offset.y + scrollOffset.y}px`
+  }
 
   const handleMouseDown = (event: MouseEvent) => {
     dragState.current = {
@@ -131,18 +145,7 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete, ...options },
     handleUpdatePosition();
   }
 
-  const handleUpdatePosition = () => {
-    const { offset, mouseOffset, scrollOffset } = dragState.current;
-    const node = ref.current;
-
-    if (!dragState.current.isDragging) return;
-    if (!node) return;
-
-    node.style.left = `${mouseOffset.clientX - offset.x + scrollOffset.x}px`
-    node.style.top = `${mouseOffset.clientY - offset.y + scrollOffset.y}px`
-  }
-
-  const handleMouseUp = (event: MouseEvent) => {
+  const handleMouseUp = () => {
     if (!dragState.current.isDragging) return;
     
     onDragComplete?.(dragState.current)
@@ -154,6 +157,11 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete, ...options },
     setIsDragging(dragState.current.isDragging)
   }
 
+  useScrollOffsetEffect(({ offset }) => {
+    dragState.current.scrollOffset = offset
+    handleUpdatePosition();
+  }, [isDragging]);
+
   useEffect(() => {
     const node = ref.current
     if (node) {
@@ -162,13 +170,13 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete, ...options },
       node.addEventListener('mouseup', handleMouseUp)
       node.addEventListener('mouseleave', handleMouseUp)
 
-      Object.entries(options).forEach(([key, value]) => {
-        const handler = (event: Event) => {
-          value(event, dragState.current)
-        }
+      // Object.entries(options).forEach(([key, value]) => {
+      //   const handler = (event: Event) => {
+      //     value(event, dragState.current)
+      //   }
 
-        node.addEventListener(key, handler)
-      });
+      //   node.addEventListener(key, handler)
+      // });
     }
 
     return () => {
@@ -178,16 +186,19 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete, ...options },
         node.removeEventListener('mouseup', handleMouseUp)
         node.removeEventListener('mouseleave', handleMouseUp)
 
-        Object.entries(options).forEach(([key, value]) => {
-          const handler = (event: Event) => {
-            value(event, dragState.current)
-          }
+        // Object.entries(options).forEach(([key, value]) => {
+        //   const handler = (event: Event) => {
+        //     value(event, dragState.current)
+        //   }
 
-          node.removeEventListener(key, handler)
-        });
+        //   node.removeEventListener(key, handler)
+        // });
       }
     }
   }, [ref.current, ...dependencies])
 
-  return { isDragging, stopDrag: handleMouseUp }
+  return { 
+    isDragging,
+    ref: dragState
+  }
 }

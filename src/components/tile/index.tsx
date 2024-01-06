@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {  useTileContext } from "../../App";
 import { useDraggable, useTileDraggableCallbacks } from "./hooks";
-import { useScrollEffect } from "../../hooks/useScrollEffect";
+import { useScrollOffsetEffect } from "../../hooks/useScrollEffect";
 
 type TTile = React.FC<{
   registerRef: (tile: React.RefObject<HTMLDivElement>) => void,
@@ -9,25 +9,32 @@ type TTile = React.FC<{
 }>
 
 export const Tile: TTile = ({ registerRef, identifier }) => {
-  const ref = useRef<HTMLDivElement>(null)
+  const tileRef = useRef<HTMLDivElement>(null);
 
   const tile = useMemo(() => ({
-    ref,
+    ref: tileRef,
     identifier,
-  }), [ref, identifier]);
+  }), [tileRef, identifier]);
 
   const { tiles } = useTileContext();
-  const [ color ] = useState(() => `#${Math.floor(Math.random()*16777215).toString(16)}`)
-  const { onDragComplete, onMouseMove, onScroll } = useTileDraggableCallbacks({ tile, color })
-  const { isDragging } = useDraggable(ref, {
-    mousemove: onMouseMove,
-    onDragComplete: onDragComplete
-  }, [tiles])
+  const [ color ] = useState(() => `#${Math.floor(Math.random()*16777215).toString(16)}`);
+  const { onDragComplete, onMouseMove, onScroll } = useTileDraggableCallbacks({ tile, color });
+  const { isDragging, ref: dragRef } = useDraggable(tileRef, { onDragComplete }, [tiles]);
 
-  useScrollEffect(onScroll(isDragging), [isDragging])
+  useScrollOffsetEffect(onScroll(isDragging), [isDragging])
 
   /***** EFFECTS *****/
-  useEffect(() => registerRef(ref), [])
+  useEffect(() => registerRef(tileRef), [])
+
+  // register mouse move event
+  useEffect(() => {
+    if (!isDragging) return;
+    const callback = onMouseMove(dragRef.current);
+
+    tileRef.current?.addEventListener('mousemove', callback);
+
+    return () => tileRef.current?.removeEventListener('mousemove', callback);
+  }, [tiles, onMouseMove, isDragging]);
 
   const baseStyle: React.CSSProperties = useMemo(() => ({
     height: Math.min(Math.max(Math.round(Math.random() * 300), 60), 300) + 'px',
@@ -46,7 +53,7 @@ export const Tile: TTile = ({ registerRef, identifier }) => {
 
   return (
     <Fragment>
-      <div style={style} ref={ref}>{identifier}</div>
+      <div style={style} ref={tileRef}>{identifier}</div>
       {isDragging && <div style={{ ...style, position: 'relative', zIndex: undefined, backgroundColor: undefined }}/>}
     </Fragment>
   )

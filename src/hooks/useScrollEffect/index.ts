@@ -9,7 +9,7 @@ type TUseScroll = (callback: (e: Event & {
  * you can control when the initialScroll is reset, meaning that the callback also
  * has access to the offset of the scroll in addition to the event information.
  */
-export const useScrollEffect: TUseScroll = (onScroll, dependencies) => {
+export const useScrollOffsetEffect: TUseScroll = (onScroll, dependencies) => {
   const initialScroll = useRef({ x: 0, y: 0 });
 
   useEffect(() => {

@@ -135,7 +135,7 @@ export const getCurrentNodeInformation: TileHelpers.TGetCurrentNodeInformation =
 
 const getIndexClosestToMiddle: TileHelpers.TGetIndexClosestToMiddle = ({ tiles, nodeMiddle, nodeIndex }) => {
   const middleOfNodes = tiles.map(({ ref }, index) => ({
-    middle: ref!.current!.offsetTop + (ref!.current!.offsetHeight / 2),
+    middle: ref!.current!.offsetTop + (Number(ref?.current?.offsetHeight) / 2),
     index,
   }))
   .sort((a, b) => Math.abs(nodeMiddle - a.middle) - Math.abs(nodeMiddle - b.middle))
