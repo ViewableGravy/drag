@@ -6,9 +6,10 @@ import { useScrollOffsetEffect } from "../../hooks/useScrollEffect";
 type TTile = React.FC<{
   registerRef: (tile: React.RefObject<HTMLDivElement>) => void,
   identifier: string,
+  style?: React.CSSProperties,
 }>
 
-export const Tile: TTile = ({ registerRef, identifier }) => {
+export const Tile: TTile = ({ registerRef, identifier, style }) => {
   const tileRef = useRef<HTMLDivElement>(null);
 
   const tile = useMemo(() => ({
@@ -17,8 +18,7 @@ export const Tile: TTile = ({ registerRef, identifier }) => {
   }), [tileRef, identifier]);
 
   const { tiles } = useTileContext();
-  const [ color ] = useState(() => `#${Math.floor(Math.random()*16777215).toString(16)}`);
-  const { onDragComplete, onMouseMove, onScroll } = useTileDraggableCallbacks({ tile, color });
+  const { onDragComplete, onMouseMove, onScroll } = useTileDraggableCallbacks({ tile, color: style?.backgroundColor ?? '' });
   const { isDragging, ref: dragRef } = useDraggable(tileRef, { onDragComplete }, [tiles]);
 
   useScrollOffsetEffect(onScroll(isDragging), [isDragging])
@@ -37,15 +37,15 @@ export const Tile: TTile = ({ registerRef, identifier }) => {
   }, [tiles, onMouseMove, isDragging]);
 
   const baseStyle: React.CSSProperties = useMemo(() => ({
-    height: Math.min(Math.max(Math.round(Math.random() * 300), 60), 300) + 'px',
-    width: '90vw',
+    width: '100%',
     marginBlock: 10,
-    backgroundColor: color,
+    backgroundColor: 'white',
     color: 'black',
     userSelect: 'none',
-  }), [])
+    ...style,
+  }), [style])
 
-  const style: React.CSSProperties = {
+  const _style: React.CSSProperties = {
     ...baseStyle,
     position: isDragging ? 'absolute' : 'relative',
     zIndex: isDragging ? 1 : undefined,
@@ -53,8 +53,8 @@ export const Tile: TTile = ({ registerRef, identifier }) => {
 
   return (
     <Fragment>
-      <div style={style} ref={tileRef}>{identifier}</div>
-      {isDragging && <div style={{ ...style, position: 'relative', zIndex: undefined, backgroundColor: undefined }}/>}
+      <div style={_style} ref={tileRef}>{identifier}</div>
+      {isDragging && <div style={{ ..._style, position: 'relative', zIndex: undefined, backgroundColor: undefined }}/>}
     </Fragment>
   )
 }

@@ -1,7 +1,11 @@
+import React from "react"
+
 export namespace TileHelpers {
   export type TTileObject = {
     ref: React.RefObject<HTMLDivElement> | null,
-    identifier: string
+    identifier: string,
+    position: 'inline' | 'block',
+    style: React.CSSProperties
   }
 
   export type TGetOverlappingInformation = (tile: Readonly<{
@@ -69,7 +73,28 @@ export namespace TileHelpers {
     shouldGoBefore: boolean,
     tiles: Readonly<Array<TTileObject>>,
     nodeIndex: number,
+    shouldGoRight: boolean,
+    shouldGoLeft: boolean,
+    closestVerticalTileIdentifier: string,
   }) => Array<TTileObject>) => Array<TTileObject>;
+
+  export type TGetShouldGoRight = (options: { 
+    index: number, 
+    tiles: Readonly<Array<TTileObject>>, 
+    nodeMiddle: number 
+  }) => boolean;
+
+  export type TGetShouldGoLeft = (options: { 
+    index: number, 
+    tiles: Readonly<Array<TTileObject>>, 
+    nodeMiddle: number 
+  }) => boolean;
+
+  export type TGetIdentifierClosestToMiddle = (options: { 
+    tiles: Readonly<Array<TTileObject>>, 
+    nodeMiddle: number,
+    nodeIndex: number,
+  }) => string;
 }
 
 export const getOverlappingInformation: TileHelpers.TGetOverlappingInformation = (tile, tiles) => {
@@ -143,6 +168,18 @@ const getIndexClosestToMiddle: TileHelpers.TGetIndexClosestToMiddle = ({ tiles, 
   return middleOfNodes[0].index;
 }
 
+const getIdentifierClosestToMiddle: TileHelpers.TGetIdentifierClosestToMiddle = ({ tiles, nodeMiddle, nodeIndex }) => {
+  const middleOfNodes = tiles.map(({ ref, identifier }, index) => ({
+    middle: ref!.current!.offsetTop + (Number(ref?.current?.offsetHeight) / 2),
+    index,
+    identifier,
+  }))
+  .sort((a, b) => Math.abs(nodeMiddle - a.middle) - Math.abs(nodeMiddle - b.middle))
+  .filter(({ index }) => index !== nodeIndex);
+
+  return middleOfNodes[0].identifier;
+}
+
 const getShouldGoBefore: TileHelpers.TGetShouldGoBefore = ({ index, tiles, nodeMiddle }) => {
   const node = tiles[index].ref!.current!;
   // const interceptingNodeMiddle = window.scrollY + node.getBoundingClientRect().y + node.offsetHeight / 2;
@@ -151,13 +188,40 @@ const getShouldGoBefore: TileHelpers.TGetShouldGoBefore = ({ index, tiles, nodeM
   return nodeMiddle < interceptingNodeMiddle;
 }
 
+const getShouldGoRight: TileHelpers.TGetShouldGoRight= ({ index, tiles, nodeMiddle }) => {
+  const interceptingNode = tiles[index].ref!.current!;
+  const interceptingNodeMiddleHorizontal = interceptingNode.offsetLeft + (interceptingNode.offsetWidth / 2);
+
+  // if the nodeMiddle is in the right 30% then return true
+  if (nodeMiddle > interceptingNodeMiddleHorizontal + (interceptingNode.offsetWidth * 0.2)) {
+    return true;
+  }
+
+  return false;
+};
+
+const getShouldGoLeft: TileHelpers.TGetShouldGoRight = ({ index, tiles, nodeMiddle }) => {
+  const interceptingNode = tiles[index].ref!.current!;
+  const interceptingNodeMiddleHorizontal = interceptingNode.offsetLeft + (interceptingNode.offsetWidth / 2);
+
+  // if the nodeMiddle is in the left 30% then return true
+  if (nodeMiddle < interceptingNodeMiddleHorizontal - (interceptingNode.offsetWidth * 0.2)) {
+    return true;
+  }
+
+  return false;
+}
+
 const reorder: TileHelpers.TReorder = ({ closestVerticalTileIndex, shouldGoBefore, tiles, nodeIndex }) => {
   const newTiles = [...tiles];
 
   const isTileIndexBeforeInterceptingIndex = nodeIndex < closestVerticalTileIndex;
 
-  //remove this tile from the array
+  //for now, the reordered one is becoming block so lets do that now
+  newTiles[nodeIndex].position = 'block';
+
   const removed = newTiles.splice(nodeIndex, 1)[0];
+
   const insertIndex = getInsertIndex(closestVerticalTileIndex, isTileIndexBeforeInterceptingIndex, shouldGoBefore);
   newTiles.splice(insertIndex, 0, removed);
 
@@ -166,9 +230,20 @@ const reorder: TileHelpers.TReorder = ({ closestVerticalTileIndex, shouldGoBefor
 
 export const tilePositionInformation: TileHelpers.THandleOverlap = ({ tiles, nodeIndex, nodeMiddle }, callback) => {
   const closestVerticalTileIndex = getIndexClosestToMiddle({ tiles, nodeMiddle, nodeIndex });
+  const closestVerticalTileIdentifier = getIdentifierClosestToMiddle({ tiles, nodeMiddle, nodeIndex });
   const shouldGoBefore = getShouldGoBefore({ index: closestVerticalTileIndex, tiles, nodeMiddle });
+  const shouldGoRight = getShouldGoRight({ index: closestVerticalTileIndex, tiles, nodeMiddle });
+  const shouldGoLeft = getShouldGoLeft({ index: closestVerticalTileIndex, tiles, nodeMiddle });
 
-  return callback?.({ closestVerticalTileIndex, shouldGoBefore, tiles, nodeIndex }) ?? [...tiles];
+  return callback?.({ 
+    closestVerticalTileIndex, 
+    shouldGoBefore, 
+    tiles, 
+    nodeIndex,
+    shouldGoRight,
+    shouldGoLeft,
+    closestVerticalTileIdentifier
+  }) ?? [...tiles];
 }
 
 export const getRearrangedTiles: TileHelpers.TGetRearrangedTiles = ({

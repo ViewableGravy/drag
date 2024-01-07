@@ -16,6 +16,10 @@ export type TDragstate = {
     clientY: number,
   },
   isDragging: boolean,
+  initialInformation: {
+    offsetHeight: number,
+    offsetWidth: number,
+  },
 };
 
 export const useTileDraggableCallbacks = ({ tile, color } : { 
@@ -30,8 +34,6 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
   const onMouseMove = ({ isDragging }: TDragstate) => (_: Event) => {
     if (!isDragging) return;
     if (!ref.current) return;
-
-    console.log('here')
 
     handleTileMove(tile.identifier, {
       x: parseInt(ref.current.style.left),
@@ -97,6 +99,10 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
     scrollOffset: { x: 0, y: 0 },
     mouseOffset: { clientX: 0, clientY: 0 },
     isDragging: false,
+    initialInformation: {
+      offsetHeight: 0,
+      offsetWidth: 0,
+    },
   });
   const [isDragging, setIsDragging] = useState(dragState.current.isDragging)
 
@@ -109,9 +115,13 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
 
     node.style.left = `${mouseOffset.clientX - offset.x + scrollOffset.x}px`
     node.style.top = `${mouseOffset.clientY - offset.y + scrollOffset.y}px`
+    node.style.height = `${dragState.current.initialInformation.offsetHeight}px`
+    node.style.width = `${dragState.current.initialInformation.offsetWidth}px`
   }
 
   const handleMouseDown = (event: MouseEvent) => {
+    if (!ref.current) return;
+
     dragState.current = {
       ...dragState,
       isDragging: true,
@@ -126,6 +136,10 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
       scrollOffset: {
         x: 0,
         y: 0,
+      },
+      initialInformation: {
+        offsetHeight: ref.current?.offsetHeight,
+        offsetWidth: ref.current?.offsetWidth,
       }
     }
 
@@ -135,6 +149,8 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
   }
 
   const handleMouseMove = (event: MouseEvent) => {
+    if (!dragState.current.isDragging) return;
+
     dragState.current.mouseOffset = {
       clientX: event.clientX,
       clientY: event.clientY,
@@ -147,6 +163,7 @@ export const useDraggable: TUseDraggable = (ref, { onDragComplete }, dependencie
 
   const handleMouseUp = () => {
     if (!dragState.current.isDragging) return;
+    if (!ref.current) return;
     
     onDragComplete?.(dragState.current)
 
