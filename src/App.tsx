@@ -54,7 +54,7 @@ const generateXEmptyTiles = (x: number) => {
     position: potentialPositions[Math.floor(Math.random() * potentialPositions.length)],
     style: {
       minHeight: Math.min(Math.max(Math.round(Math.random() * 300), 60), 300) + 'px',
-      backgroundColor: `#${Math.floor(Math.random()*16777215).toString(16)}`
+      backgroundColor: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase()}`
     } as React.CSSProperties,
   }) satisfies TileHelpers.TTileObject); 
 }
@@ -93,7 +93,6 @@ function useMemoizedGroupedElements(tiles: Array<TileHelpers.TTileObject>) {
 function App() {
   /***** STATE *****/
   const [estimationInformation, setEstimationInformation] = useState({
-    // closestVerticalTileIndex: -1,
     closestVerticalTileIdentifier: '',
     shouldGoBefore: true,
     shouldGoLeft: false,
@@ -118,7 +117,6 @@ function App() {
     }));
 
     setEstimationInformation({
-      // closestVerticalTileIndex: -1,
       closestVerticalTileIdentifier: '',
       shouldGoBefore: true,
       shouldGoLeft: false,
@@ -133,8 +131,6 @@ function App() {
 
     tilePositionInformation(options, ({ closestVerticalTileIndex, shouldGoBefore, shouldGoLeft, shouldGoRight, closestVerticalTileIdentifier }) => {
       setEstimationInformation({
-        // closestVerticalTileIndex,
-        // closestVerticalTileIndex,
         closestVerticalTileIdentifier,
         shouldGoBefore,
         shouldGoLeft,

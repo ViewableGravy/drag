@@ -1,3 +1,5 @@
+import React from "react";
+
 export const InjectElementIntoJSX = ({
   children,
   element,
@@ -17,5 +19,5 @@ export const InjectElementIntoJSX = ({
   if (end)
     newArray.push(element);
 
-  return <>{newArray}</>;
+  return <>{React.Children.toArray(newArray)}</>;
 }
