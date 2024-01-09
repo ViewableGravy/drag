@@ -51,7 +51,8 @@ const generateXEmptyTiles = (x: number) => {
   return Array(x).fill(null).map(() => ({
     ref: null,
     identifier: generateUniqueIdentifier(),
-    position: potentialPositions[Math.floor(Math.random() * potentialPositions.length)],
+    // position: potentialPositions[Math.floor(Math.random() * potentialPositions.length)],
+    position: 'block',
     style: {
       minHeight: Math.min(Math.max(Math.round(Math.random() * 300), 60), 300) + 'px',
       backgroundColor: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase()}`
@@ -129,12 +130,12 @@ function App() {
 
     const options = { tiles: originalTiles, ...getCurrentNodeInformation(tile, originalTiles, offset) };
 
-    tilePositionInformation(options, ({ closestVerticalTileIndex, shouldGoBefore, shouldGoLeft, shouldGoRight, closestVerticalTileIdentifier }) => {
+    tilePositionInformation(options, ({ shouldVisuallyGoBefore, shouldVisuallyGoLeft, shouldVisuallyGoRight, closestTileIdentifier: closestVerticalTileIdentifier }) => {
       setEstimationInformation({
         closestVerticalTileIdentifier,
-        shouldGoBefore,
-        shouldGoLeft,
-        shouldGoRight,
+        shouldGoBefore: shouldVisuallyGoBefore,
+        shouldGoLeft: shouldVisuallyGoLeft,
+        shouldGoRight: shouldVisuallyGoRight,
       });
 
       return originalTiles;
