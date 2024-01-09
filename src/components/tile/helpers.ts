@@ -284,7 +284,7 @@ const getShouldGoRight: TileHelpers.TGetShouldGoRight= ({ identifiers, tiles, no
   // interceptingNode.style.backgroundColor = 'red';
 
   // if the nodeMiddle is in the right 20% then return true
-  if (nodeMiddle.x > interceptingNodeMiddleHorizontal - (interceptingNode.offsetWidth * 0.2)) {
+  if (nodeMiddle.x > interceptingNodeMiddleHorizontal + (interceptingNode.offsetWidth * 0.3)) {
     return true;
   }
 
@@ -299,7 +299,7 @@ const getShouldGoLeft: TileHelpers.TGetShouldGoRight = ({ identifiers, tiles, no
   // interceptingNode.style.backgroundColor = 'green';
 
   // if the nodeMiddle is in the left 20% then return true
-  if (nodeMiddle.x < interceptingNodeMiddleHorizontal + (interceptingNode.offsetWidth * 0.2)) {
+  if (nodeMiddle.x < interceptingNodeMiddleHorizontal - (interceptingNode.offsetWidth * 0.3)) {
     return true;
   }
 
@@ -312,6 +312,9 @@ const reorder: TileHelpers.TReorder = ({ closestTileIdentifier, shouldVisuallyGo
   const isTileIndexBeforeInterceptingIndex = nodeIndex < closestTileIndex;
   const closestTile = newTiles[closestTileIndex];
   const removed = newTiles.splice(nodeIndex, 1)[0];
+
+  console.log('shouldVisuallyGoRight', shouldVisuallyGoRight)
+  console.log('shouldVisuallyGoRight: ', shouldVisuallyGoLeft)
 
   if (shouldVisuallyGoRight || shouldVisuallyGoLeft) {
     removed.position = 'inline';
