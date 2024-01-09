@@ -43,7 +43,8 @@ export const Tile: TTile = ({ registerRef, identifier, style }) => {
     color: 'black',
     userSelect: 'none',
     ...style,
-  }), [style])
+    ...(isDragging && { opacity: 0.5  })
+  }), [style, isDragging])
 
   const _style: React.CSSProperties = {
     ...baseStyle,

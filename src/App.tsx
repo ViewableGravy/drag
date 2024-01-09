@@ -94,7 +94,7 @@ function useMemoizedGroupedElements(tiles: Array<TileHelpers.TTileObject>) {
 function App() {
   /***** STATE *****/
   const [estimationInformation, setEstimationInformation] = useState({
-    closestVerticalTileIdentifier: '',
+    closestTileIdentifier: '',
     shouldGoBefore: true,
     shouldGoLeft: false,
     shouldGoRight: false,
@@ -118,7 +118,7 @@ function App() {
     }));
 
     setEstimationInformation({
-      closestVerticalTileIdentifier: '',
+      closestTileIdentifier: '',
       shouldGoBefore: true,
       shouldGoLeft: false,
       shouldGoRight: false,
@@ -130,9 +130,9 @@ function App() {
 
     const options = { tiles: originalTiles, ...getCurrentNodeInformation(tile, originalTiles, offset) };
 
-    tilePositionInformation(options, ({ shouldVisuallyGoBefore, shouldVisuallyGoLeft, shouldVisuallyGoRight, closestTileIdentifier: closestVerticalTileIdentifier }) => {
+    tilePositionInformation(options, ({ shouldVisuallyGoBefore, shouldVisuallyGoLeft, shouldVisuallyGoRight, closestTileIdentifier }) => {
       setEstimationInformation({
-        closestVerticalTileIdentifier,
+        closestTileIdentifier,
         shouldGoBefore: shouldVisuallyGoBefore,
         shouldGoLeft: shouldVisuallyGoLeft,
         shouldGoRight: shouldVisuallyGoRight,
@@ -153,6 +153,10 @@ function App() {
       width: '92vw',
       backgroundColor: 'lightblue',
       marginLeft: -20,
+    } as React.CSSProperties,
+    verticalLine: {
+      width: 2,
+      backgroundColor: 'lightblue',
     } as React.CSSProperties,
     TileGroup: {
       width: '90vw', 
@@ -178,17 +182,25 @@ function App() {
           <InjectElementIntoJSX
             key={`${groupID}-InjectElementIntoJSX`}
             element={<div style={styles.horizontalLine} />}
-            start={group.some(tile => tile.identifier === estimationInformation.closestVerticalTileIdentifier) && estimationInformation.shouldGoBefore}
-            end={group.some(tile => tile.identifier === estimationInformation.closestVerticalTileIdentifier) && !estimationInformation.shouldGoBefore}
+            start={group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight}
+            end={group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && !estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight}
           >
             <div key={groupID} style={styles.TileGroup}>
               {group.map((tile) => (
-                <Tile
-                  key={tile.identifier}
-                  registerRef={registerRef(tile.identifier)}
-                  identifier={tile.identifier}
-                  style={tile.style}
-                />
+                <InjectElementIntoJSX
+                  key={`${tile.identifier}-InjectElementIntoJSX`}
+                  element={<div style={styles.verticalLine} />}
+                  start={tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoLeft}
+                  end={tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoRight}
+                  // end={true}
+                >
+                  <Tile
+                    key={tile.identifier}
+                    registerRef={registerRef(tile.identifier)}
+                    identifier={tile.identifier}
+                    style={tile.style}
+                  />
+                </InjectElementIntoJSX>
               ))}
             </div>
           </InjectElementIntoJSX>
