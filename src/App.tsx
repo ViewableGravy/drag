@@ -174,26 +174,29 @@ function App() {
     registerRef
   }
 
+  const generateGroupInjectionProps = (group: TileHelpers.TTileObject[], id: string) => ({
+    start: group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight,
+    end: group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && !estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight,
+    key: `${id}-InjectElementIntoJSX`,
+    element: <div style={styles.horizontalLine} />
+  })
+
+  const generateTileInjectionProps = (tile: TileHelpers.TTileObject) => ({
+    start: tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoLeft,
+    end: tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoRight,
+    key: `${tile.identifier}-InjectElementIntoJSX`,
+    element: <div style={styles.verticalLine} />
+  })
+
   /***** RENDER *****/
   return (
     <div style={styles.container}>
       <TileContext.Provider value={contextValues}>
         {tiles.map(({ group, groupID }) => (
-          <InjectElementIntoJSX
-            key={`${groupID}-InjectElementIntoJSX`}
-            element={<div style={styles.horizontalLine} />}
-            start={group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight}
-            end={group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && !estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight}
-          >
+          <InjectElementIntoJSX {...generateGroupInjectionProps(group, groupID)}>
             <div key={groupID} style={styles.TileGroup}>
               {group.map((tile) => (
-                <InjectElementIntoJSX
-                  key={`${tile.identifier}-InjectElementIntoJSX`}
-                  element={<div style={styles.verticalLine} />}
-                  start={tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoLeft}
-                  end={tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoRight}
-                  // end={true}
-                >
+                <InjectElementIntoJSX {...generateTileInjectionProps(tile)}>
                   <Tile
                     key={tile.identifier}
                     registerRef={registerRef(tile.identifier)}
