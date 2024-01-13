@@ -1,6 +1,6 @@
-import React, { Fragment, useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Tile } from './components/tile'
-import { TileHelpers, getCurrentNodeInformation, getRearrangedTiles, tilePositionInformation } from './components/tile/helpers';
+import { TileHelpers, findByIdentifier, getEnhancedTile, getRearrangedTiles, getTileInformation } from './components/tile/helpers';
 import { InjectElementIntoJSX } from './components/InjectElementIntoJSX';
 
 type TCompleteTileDrag = (props: {
@@ -11,84 +11,49 @@ type TCompleteTileDrag = (props: {
   }
 }) => void;
 
-type TUpdateTileInformation = (identifier: string) => (tile: React.RefObject<HTMLDivElement>) => void;
-
+type TUpdateTileInformation = (groupIdentifier: string, tileIdentifier: string) => (tile: HTMLDivElement | null) => void;
+type TUpdateGroupInformation = (groupIdentifier: string) => (group: HTMLDivElement | null) => void;
 type handleTileMove = (identifier: string, offset: { x: number, y: number }) => void;
 
-export const TileContext = React.createContext<{
-  tiles: Array<TileHelpers.TTileObject>,
-  setTiles: (tiles: Array<TileHelpers.TTileObject>) => void,
-  /**
-   * Current Behaviour:
-   * 
-   * 1. TODO
-   */
-  handleTileMove: (identifier: string, offset: { x: number, y: number }) => void,
-  /**
-   * Current Behaviour:
-   * 
-   * 1. This function will reorder the tile (by id) within the tiles array based on the position that it is dropped,
-   * this will essentially reorder the tile appropriately when repositioned
-   */
-  handleTileDrop: TCompleteTileDrag,
+const emptyFunction = () => {};
+const emptyHOF = () => emptyFunction;
 
+const TileContext = React.createContext<{
+  tiles: Array<TileHelpers.TTileGroup>,
+  handleTileMove: (identifier: string, offset: { x: number, y: number }) => void,
+  handleTileDrop: TCompleteTileDrag,
   registerRef: TUpdateTileInformation,
 }>({
   tiles: [],
-  setTiles: () => {},
-  handleTileMove: () => {},
-  handleTileDrop: () => {},
-  registerRef: () => () => {},
+  handleTileMove: emptyFunction,
+  handleTileDrop: emptyFunction,
+  registerRef: emptyHOF,
 });
 
 export const useTileContext = () => React.useContext(TileContext);
 
-export const generateUniqueIdentifier = () => Math.random().toString(36).substring(7);
-
-const potentialPositions = ['inline', 'block'] as const;
-
-const generateXEmptyTiles = (x: number) => {
-  return Array(x).fill(null).map(() => ({
-    ref: null,
-    identifier: generateUniqueIdentifier(),
-    // position: potentialPositions[Math.floor(Math.random() * potentialPositions.length)],
-    position: 'block',
-    style: {
-      minHeight: Math.min(Math.max(Math.round(Math.random() * 300), 60), 300) + 'px',
-      backgroundColor: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase()}`
-    } as React.CSSProperties,
-  }) satisfies TileHelpers.TTileObject); 
-}
-
-/**
- * Horizontally groups components based on their position attribute
- */
-function useMemoizedGroupedElements(tiles: Array<TileHelpers.TTileObject>) {
-  return useMemo(() => {
-    let result: Array<Array<TileHelpers.TTileObject>> = [];
-    let temp: TileHelpers.TTileObject[] = [];
-
-    tiles.forEach((item) => {
-      if (item.position === 'block') {
-        if (temp.length > 0) {
-          result.push(temp);
-          temp = [];
-        }
-        result.push([item]);
-      } else {
-        temp.push(item);
-      }
-    });
-
-    if (temp.length > 0) {
-      result.push(temp);
-    }
-
-    return result.map((group) => ({
-      groupID: group.reduce((acc, curr) => acc + curr.identifier, ''),
-      group,
-    }));
-  }, [tiles]);
+const _helpers = {
+  generateUniqueIdentifier: () => Math.random().toString(36).substring(7),
+  generateMinHeightWithinRange: (min: number, max: number) => Math.min(Math.max(Math.round(Math.random() * max), min), max),
+  generateRandomColor: () => `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase()}`,
+  generateXEmptyTiles: (x: number): Array<TileHelpers.TTileGroup> => {
+    return Array(x).fill(null).map(() => ({
+      name: 'group',
+      identifier: _helpers.generateUniqueIdentifier(),
+      ref: { current: undefined } as React.MutableRefObject<HTMLDivElement | undefined>,
+      tiles: [{
+        name: 'tile',
+        ref: null,
+        identifier: _helpers.generateUniqueIdentifier(),
+        position: 'block',
+        style: {
+          minHeight: _helpers.generateMinHeightWithinRange(60, 300) + 'px',
+          backgroundColor: _helpers.generateRandomColor()
+        } satisfies React.CSSProperties,
+      }]
+      
+    }) satisfies TileHelpers.TTileGroup); 
+  }
 }
 
 function App() {
@@ -99,24 +64,37 @@ function App() {
     shouldGoLeft: false,
     shouldGoRight: false,
   });
-  const [originalTiles, setOriginalTiles] = useState<Array<TileHelpers.TTileObject>>(generateXEmptyTiles(20));
-  const tiles = useMemoizedGroupedElements(originalTiles);
+  const [tiles, setTiles] = useState<Array<TileHelpers.TTileGroup>>(_helpers.generateXEmptyTiles(20));
 
   /***** FUNCTIONS *****/
-  const registerRef = useCallback<TUpdateTileInformation>((identifier) => (tile) => {
-    setOriginalTiles((tiles) => {
-      tiles.find(({ identifier: _identifier }) => _identifier === identifier)!.ref = tile;
-      return tiles;
-    });
-  }, []);
+  const registerTile = useCallback<TUpdateTileInformation>((groupID, tileID) => (tile) => {
+    const group = findByIdentifier(tiles, groupID);
+
+    if (!group) return;
+
+    const tileObject = findByIdentifier(group.tiles, tileID);
+
+    if (!tileObject || !tileObject.ref || !tile) return;
+
+    tileObject.ref.current = tile;
+  }, [tiles]);
+
+  const registerGroup = useCallback<TUpdateGroupInformation>((groupID) => (group) => {
+    const groupObject = findByIdentifier(tiles, groupID);
+
+    if (!groupObject || !groupObject.ref || !group) return;
+
+    groupObject.ref.current = group;
+  }, [tiles]);
 
   const handleTileDrop = useCallback<TCompleteTileDrag>(({ identifier, offset }) => {
-    setOriginalTiles((tiles) => getRearrangedTiles({ 
-      tile: tiles.find(({ identifier: _identifier }) => _identifier === identifier)!, 
-      tiles, 
-      offset 
-    }));
+    const tile = getEnhancedTile({
+      tiles: tiles,
+      identifier: identifier,
+      offset,
+    });
 
+    setTiles((tiles) => getRearrangedTiles({ tile, tiles }));
     setEstimationInformation({
       closestTileIdentifier: '',
       shouldGoBefore: true,
@@ -125,22 +103,29 @@ function App() {
     });
   }, []);
 
-  const handleTileMove = useCallback<handleTileMove>((identifier, offset) => {
-    const tile = originalTiles.find(({ identifier: _identifier }) => _identifier === identifier)!;
+  const handleTileMove = useCallback<handleTileMove>((tileIdentifier, offset) => {
+    const tile = getEnhancedTile({
+      tiles: tiles,
+      identifier: tileIdentifier,
+      offset,
+    });
 
-    const options = { tiles: originalTiles, ...getCurrentNodeInformation(tile, originalTiles, offset) };
+    if (!tile) return;
 
-    tilePositionInformation(options, ({ shouldVisuallyGoBefore, shouldVisuallyGoLeft, shouldVisuallyGoRight, closestTileIdentifier }) => {
-      setEstimationInformation({
-        closestTileIdentifier,
-        shouldGoBefore: shouldVisuallyGoBefore,
-        shouldGoLeft: shouldVisuallyGoLeft,
-        shouldGoRight: shouldVisuallyGoRight,
-      });
+    const { 
+      shouldVisuallyGoBefore, 
+      shouldVisuallyGoLeft, 
+      shouldVisuallyGoRight, 
+      closestTileIdentifier 
+    } = getTileInformation({ tiles, tile })
 
-      return originalTiles;
-    })
-  }, [originalTiles])
+    setEstimationInformation({
+      closestTileIdentifier,
+      shouldGoBefore: shouldVisuallyGoBefore,
+      shouldGoLeft: shouldVisuallyGoLeft,
+      shouldGoRight: shouldVisuallyGoRight,
+    });
+  }, [tiles])
 
   const styles = {
     container: {
@@ -167,11 +152,11 @@ function App() {
   }
 
   const contextValues = {
-    tiles: originalTiles,
-    setTiles: setOriginalTiles,
+    tiles: tiles,
+    setTiles: setTiles,
     handleTileDrop,
     handleTileMove,
-    registerRef
+    registerRef: registerTile
   }
 
   const generateGroupInjectionProps = (group: TileHelpers.TTileObject[], id: string) => ({
@@ -181,7 +166,7 @@ function App() {
     element: <div style={styles.horizontalLine} />
   })
 
-  const generateTileInjectionProps = (tile: TileHelpers.TTileObject) => ({
+  const generateTileInjectionProps = (tile: { identifier: string }) => ({
     start: tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoLeft,
     end: tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoRight,
     key: `${tile.identifier}-InjectElementIntoJSX`,
@@ -192,16 +177,16 @@ function App() {
   return (
     <div style={styles.container}>
       <TileContext.Provider value={contextValues}>
-        {tiles.map(({ group, groupID }) => (
+        {tiles.map(({ tiles: group, identifier: groupID }) => (
           <InjectElementIntoJSX {...generateGroupInjectionProps(group, groupID)}>
-            <div key={groupID} style={styles.TileGroup}>
-              {group.map((tile) => (
-                <InjectElementIntoJSX {...generateTileInjectionProps(tile)}>
+            <div ref={registerGroup(groupID)} key={groupID} style={styles.TileGroup}>
+              {group.map(({ identifier, style }) => (
+                <InjectElementIntoJSX {...generateTileInjectionProps({ identifier })}>
                   <Tile
-                    key={tile.identifier}
-                    registerRef={registerRef(tile.identifier)}
-                    identifier={tile.identifier}
-                    style={tile.style}
+                    key={identifier}
+                    identifier={identifier}
+                    ref={registerTile(groupID, identifier)}
+                    style={style}
                   />
                 </InjectElementIntoJSX>
               ))}

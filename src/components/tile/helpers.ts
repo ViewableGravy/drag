@@ -1,11 +1,27 @@
 import React from "react"
 
 export namespace TileHelpers {
+  /**
+   * A Tile object is the foundation of a tile. This is the object that is passed to the Tile component. and contains meta information
+   * about the tile to be rendered. this is both for the Tile component as well as the parent and will be updated with information regarding the tile
+   */
   export type TTileObject = {
-    ref: React.RefObject<HTMLDivElement> | null,
+    name: 'tile',
+    ref: React.MutableRefObject<HTMLDivElement> | null,
     identifier: string,
     position: 'inline' | 'block',
     style: React.CSSProperties
+  }
+
+  /**
+   * A Tile group is the foundation of a row. This can be considered a row in most aspects except at mobile resolutions, 
+   * if the children cannot be shrunk, it will be forced to wrap.
+   */
+  export type TTileGroup = {
+    name: Readonly<'group'>,
+    tiles: Array<TileHelpers.TTileObject>,
+    ref: React.MutableRefObject<HTMLDivElement | undefined>,
+    identifier: string,
   }
 
   export type TGetOverlappingInformation = (tile: Readonly<{
@@ -19,18 +35,10 @@ export namespace TileHelpers {
     overlappingTileIndexes: number[];
   }
 
-  export type TGetRearrangedTiles = ({
-    tile,
-    tiles,
-    offset
-  }: {
-    tile: Readonly<TTileObject>,
-    tiles: Readonly<Array<TTileObject>>,
-    offset: {
-      x: number,
-      y: number,
-    }
-  }) => Array<TTileObject>;
+  export type TGetRearrangedTiles = (options: {
+    tile: Readonly<TTileObject> | undefined, 
+    tiles: Readonly<Array<TTileGroup>>,
+  }) => Array<TTileGroup>;
 
   export type TGetIndexClosestToMiddle = ({
     tiles,
@@ -43,17 +51,26 @@ export namespace TileHelpers {
 
   export type TGetInsertIndex = (interceptingIndex: number, isBefore: boolean, isMovingBefore: boolean) => number;
 
-  export type TGetCurrentNodeInformation = (tile: Readonly<TTileObject>, tiles: Readonly<Array<TTileObject>>, offset: {
-    x: number,
-    y: number,
-  }) => {
-    node: HTMLDivElement,
-    nodeMiddle: {
+  type TEnhancedTile = {
+    center: {
       x: number,
       y: number,
     },
-    nodeIndex: number,
-  }
+    group: TTileGroup
+  } & TTileObject;
+
+  export type TGetEnhancedTile = ({
+    tiles, 
+    offset,
+    identifier
+  }: {
+    tiles: Array<TTileGroup>,
+    offset: {
+      x: number,
+      y: number,
+    },
+    identifier: string,
+  }) => TEnhancedTile | undefined
 
   export type TReorder = (options: {
     closestTileIdentifier: string,
@@ -64,24 +81,23 @@ export namespace TileHelpers {
     shouldVisuallyGoLeft: boolean,
   }) => Array<TTileObject>;
 
+  /**********************************************************************************************************************/
   /**
    * If there is no need to perform a reorder, simply return the existing tiles array
    */
-  export type THandleOverlap = (options: {
-    tiles: Readonly<Array<TTileObject>>,
-    nodeIndex: number,
-    nodeMiddle: {
-      x: number,
-      y: number,
-    },
-  }, callback: (options: {
-    tiles: Readonly<Array<TTileObject>>,
-    nodeIndex: number,
+  export type TGetTileInformation = (options: { 
+    tiles: Readonly<Array<TTileGroup>>, 
+    tile: Readonly<TEnhancedTile> 
+  }) => {
+    tiles: Readonly<Array<TTileGroup>>,
+    tile: TTileObject
     shouldVisuallyGoBefore: boolean,
     shouldVisuallyGoRight: boolean,
     shouldVisuallyGoLeft: boolean,
     closestTileIdentifier: string,
-  }) => Array<TTileObject>) => Array<TTileObject>;
+  };
+
+  /**********************************************************************************************************************/
 
   export type TGetShouldGoRight = (options: {
     identifiers: {
@@ -119,10 +135,9 @@ export namespace TileHelpers {
     }
   }) => boolean;
 
-  export type TGetIdentifierClosestToVerticalMiddle = (options: { 
-    tiles: Readonly<Array<TTileObject>>, 
-    nodeMiddle: number,
-    nodeIndex: number,
+  export type TGetClosestGroup = (options: { 
+    tiles: Readonly<Array<TTileGroup>>,
+    tile: Readonly<TEnhancedTile>,
   }) => string;
 
   export type TGetIdentifierClosestToHorizontalMiddle = (options: {
@@ -136,9 +151,14 @@ export namespace TileHelpers {
   }) => string;
 }
 
-const getTile = (tiles: Readonly<TileHelpers.TTileObject[]> , identifier: string) => {
-  return tiles.find(({ identifier: _identifier }) => _identifier === identifier)!;
+export const findByIdentifier = <T extends Record<string, unknown> & { identifier: string }>(tiles: Readonly<Array<T>> , identifier: string) => {
+  return tiles?.find(({ identifier: _identifier }) => _identifier === identifier);
+};
+
+export const findEditableByIdentifier = <T>(tiles: Array<T & { identifier: string }>, identifier: string) => {
+  return tiles?.find(({ identifier: _identifier }) => _identifier === identifier);
 }
+
 
 const getTileIndex = (tiles: Readonly<TileHelpers.TTileObject[]> , identifier: string) => {
   return tiles.findIndex(({ identifier: _identifier }) => _identifier === identifier);
@@ -193,21 +213,37 @@ const getInsertIndex: TileHelpers.TGetInsertIndex = (interceptingIndex, isBefore
   }
 }
 
-export const getCurrentNodeInformation: TileHelpers.TGetCurrentNodeInformation = (tile, tiles, offset) => {
-  const node = tile.ref!.current!;
-  const nodeMiddle = {
-    y: (node.offsetHeight / 2) + (offset.y || 0),
-    x: (node.offsetWidth / 2) + (offset.x || 0)
-  };
-  const nodeIndex = tiles.findIndex(({ identifier }) => identifier === tile.identifier);
-  return {
-    node,
-    nodeMiddle,
-    nodeIndex,
+export const getEnhancedTile: TileHelpers.TGetEnhancedTile = ({ tiles, offset, identifier }) => {
+  const { tile, group } = findTileAndGroup(tiles, identifier);
+  const node = tile?.ref?.current;
+
+  switch (true) {
+    case !tile:
+    case !group:
+    case !node:
+      return undefined;
+    default: {
+      return {
+        ...tile,
+        center: {
+          y: (node.offsetHeight / 2) + (offset.y || 0),
+          x: (node.offsetWidth / 2) + (offset.x || 0)
+        },
+        group
+      }
+    }
   }
 }
 
-const getIdentifierClosestToVerticalMiddle: TileHelpers.TGetIdentifierClosestToVerticalMiddle = ({ tiles, nodeMiddle, nodeIndex }) => {
+export const findTileAndGroup = (tiles: Array<TileHelpers.TTileGroup>, identifier: string) => {
+  const identifierCallback = (identifier: string) => (tile: TileHelpers.TTileObject) => tile.identifier === identifier;
+  const group = tiles.find(({ tiles }) => tiles.some(identifierCallback(identifier)));
+  const tile = tiles.find(({ tiles }) => tiles.some(identifierCallback(identifier)))?.tiles.find(identifierCallback(identifier));
+
+  return { group, tile };
+};
+
+const getClosestGroup: TileHelpers.TGetClosestGroup = ({ tiles, tile }) => {
   const middleOfNodes = tiles.map(({ ref, identifier }, index) => ({
     middle: ref!.current!.offsetTop + (Number(ref?.current?.offsetHeight) / 2),
     index,
@@ -270,15 +306,15 @@ const getIdentifierClosestToHorizontalMiddle: TileHelpers.TGetIdentifierClosestT
 
 const getShouldGoBefore: TileHelpers.TGetShouldGoBefore = ({ identifiers, tiles, nodeMiddle }) => {
   //get tile ref
-  const node = getTile(tiles, identifiers.vertical).ref!.current!;
+  const node = findByIdentifier(tiles, identifiers.vertical)!.ref!.current!;
   const interceptingNodeMiddle = node.offsetTop + (node.offsetHeight / 2);
 
   return nodeMiddle.y < interceptingNodeMiddle;
 }
 
 const getShouldGoRight: TileHelpers.TGetShouldGoRight= ({ identifiers, tiles, nodeMiddle }) => {
-  const interceptingTile = getTile(tiles, identifiers.horizontal);
-  const interceptingNode = interceptingTile.ref!.current!;
+  const interceptingTile = findByIdentifier(tiles, identifiers.horizontal);
+  const interceptingNode = interceptingTile!.ref!.current!;
   const interceptingNodeMiddleHorizontal = interceptingNode.offsetLeft + (interceptingNode.offsetWidth / 2);
 
   // interceptingNode.style.backgroundColor = 'red';
@@ -292,8 +328,8 @@ const getShouldGoRight: TileHelpers.TGetShouldGoRight= ({ identifiers, tiles, no
 };
 
 const getShouldGoLeft: TileHelpers.TGetShouldGoRight = ({ identifiers, tiles, nodeMiddle }) => {
-  const interceptingTile = getTile(tiles, identifiers.horizontal);
-  const interceptingNode = interceptingTile.ref!.current!;
+  const interceptingTile = findByIdentifier(tiles, identifiers.horizontal);
+  const interceptingNode = interceptingTile!.ref!.current!;
   const interceptingNodeMiddleHorizontal = interceptingNode.offsetLeft + (interceptingNode.offsetWidth / 2);
 
   // interceptingNode.style.backgroundColor = 'green';
@@ -337,8 +373,12 @@ const reorder: TileHelpers.TReorder = ({ closestTileIdentifier, shouldVisuallyGo
   return newTiles;
 }
 
-export const tilePositionInformation: TileHelpers.THandleOverlap = ({ tiles, nodeIndex, nodeMiddle }, callback) => {
-  const closestVerticalTileIdentifier = getIdentifierClosestToVerticalMiddle({ tiles, nodeMiddle: nodeMiddle.y, nodeIndex });
+export const getTileInformation: TileHelpers.TGetTileInformation = ({ tiles, tile }) => {
+  const { center } = tile;
+
+
+  const closestVerticalTileIdentifier = getClosestGroup({ tiles, tile });
+
   const closestTileIdentifier = getIdentifierClosestToHorizontalMiddle({ 
     verticleMiddleIdentifier: closestVerticalTileIdentifier, 
     tiles, 
@@ -352,26 +392,28 @@ export const tilePositionInformation: TileHelpers.THandleOverlap = ({ tiles, nod
       horizontal: closestTileIdentifier,
     },
     tiles,
-    nodeMiddle,
-    nodeIndex
+    tile
   }
 
   const shouldVisuallyGoBefore = getShouldGoBefore(options);
   const shouldVisuallyGoRight = getShouldGoRight(options);
   const shouldVisuallyGoLeft = getShouldGoLeft(options);
 
-  return callback?.({ 
+  return { 
     ...options,
     shouldVisuallyGoBefore, 
     shouldVisuallyGoRight,
     shouldVisuallyGoLeft,
     closestTileIdentifier
-  }) ?? [...tiles];
+  }
 }
 
 export const getRearrangedTiles: TileHelpers.TGetRearrangedTiles = ({
   tile,
   tiles,
-  offset
-}) => tilePositionInformation({ tiles, ...getCurrentNodeInformation(tile, tiles, offset) }, reorder);
+}) => {
+  getTileInformation({ tiles, ...getEnhancedTile(tile, tiles, offset) });
+
+  return tiles;
+};
 

@@ -1,16 +1,31 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {  useTileContext } from "../../App";
 import { useDraggable, useTileDraggableCallbacks } from "./hooks";
 import { useScrollOffsetEffect } from "../../hooks/useScrollEffect";
 
-type TTile = React.FC<{
-  registerRef: (tile: React.RefObject<HTMLDivElement>) => void,
+type TTileProps = {
+  // registerRef: (tile: React.RefObject<HTMLDivElement>) => void,
   identifier: string,
   style?: React.CSSProperties,
-}>
+}
 
-export const Tile: TTile = ({ registerRef, identifier, style }) => {
-  const tileRef = useRef<HTMLDivElement>(null);
+const useForwardedRef = <T,>(ref: React.ForwardedRef<T>) => {
+  const innerRef = React.useRef<T>(null);
+
+  React.useEffect(() => {
+      if (!ref) return;
+      if (typeof ref === 'function') {
+          ref(innerRef.current);
+      } else {
+          ref.current = innerRef.current;
+      }
+  });
+
+  return innerRef;
+}
+
+export const Tile = React.forwardRef<HTMLDivElement, TTileProps>(({ identifier, style }: TTileProps, _tileRef) => {
+  const tileRef = useForwardedRef(_tileRef);
 
   const tile = useMemo(() => ({
     ref: tileRef,
@@ -24,8 +39,6 @@ export const Tile: TTile = ({ registerRef, identifier, style }) => {
   useScrollOffsetEffect(onScroll(isDragging), [isDragging])
 
   /***** EFFECTS *****/
-  useEffect(() => registerRef(tileRef), [])
-
   // register mouse move event
   useEffect(() => {
     if (!isDragging) return;
@@ -58,4 +71,4 @@ export const Tile: TTile = ({ registerRef, identifier, style }) => {
       {isDragging && <div style={{ ..._style, position: 'relative', zIndex: undefined, backgroundColor: undefined }}/>}
     </Fragment>
   )
-}
+});
