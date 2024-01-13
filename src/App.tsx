@@ -32,7 +32,7 @@ const TileContext = React.createContext<{
 
 export const useTileContext = () => React.useContext(TileContext);
 
-const _helpers = {
+export const _helpers = {
   generateUniqueIdentifier: () => Math.random().toString(36).substring(7),
   generateMinHeightWithinRange: (min: number, max: number) => Math.min(Math.max(Math.round(Math.random() * max), min), max),
   generateRandomColor: () => `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase()}`,
@@ -40,12 +40,11 @@ const _helpers = {
     return Array(x).fill(null).map(() => ({
       name: 'group',
       identifier: _helpers.generateUniqueIdentifier(),
-      ref: { current: undefined } as React.MutableRefObject<HTMLDivElement | undefined>,
+      ref: { current: undefined } satisfies React.MutableRefObject<HTMLDivElement | undefined>,
       tiles: [{
         name: 'tile',
-        ref: null,
+        ref:  { current: undefined } satisfies React.MutableRefObject<HTMLDivElement | undefined>,
         identifier: _helpers.generateUniqueIdentifier(),
-        position: 'block',
         style: {
           minHeight: _helpers.generateMinHeightWithinRange(60, 300) + 'px',
           backgroundColor: _helpers.generateRandomColor()
@@ -56,13 +55,19 @@ const _helpers = {
   }
 }
 
+type TEstimationInformation = {
+  group: TileHelpers.TTileGroup | null,
+  direction: 'left' | 'right' | 'top' | 'bottom' | null,
+  closestTile?: TileHelpers.TTileObject,
+  placementStrategy: 'block' | 'inline' | null,
+}
+
 function App() {
   /***** STATE *****/
-  const [estimationInformation, setEstimationInformation] = useState({
-    closestTileIdentifier: '',
-    shouldGoBefore: true,
-    shouldGoLeft: false,
-    shouldGoRight: false,
+  const [estimationInformation, setEstimationInformation] = useState<TEstimationInformation>({
+    group: null,
+    direction: null,
+    placementStrategy: null,
   });
   const [tiles, setTiles] = useState<Array<TileHelpers.TTileGroup>>(_helpers.generateXEmptyTiles(20));
 
@@ -88,44 +93,48 @@ function App() {
   }, [tiles]);
 
   const handleTileDrop = useCallback<TCompleteTileDrag>(({ identifier, offset }) => {
-    const tile = getEnhancedTile({
-      tiles: tiles,
-      identifier: identifier,
-      offset,
-    });
+    const tile = getEnhancedTile({ tiles, identifier, offset, });
 
     setTiles((tiles) => getRearrangedTiles({ tile, tiles }));
     setEstimationInformation({
-      closestTileIdentifier: '',
-      shouldGoBefore: true,
-      shouldGoLeft: false,
-      shouldGoRight: false,
+      group: null,
+      direction: null,
+      placementStrategy: null,
     });
   }, []);
 
   const handleTileMove = useCallback<handleTileMove>((tileIdentifier, offset) => {
     const tile = getEnhancedTile({
-      tiles: tiles,
+      tiles,
       identifier: tileIdentifier,
       offset,
     });
 
     if (!tile) return;
 
-    const { 
-      shouldVisuallyGoBefore, 
-      shouldVisuallyGoLeft, 
-      shouldVisuallyGoRight, 
-      closestTileIdentifier 
-    } = getTileInformation({ tiles, tile })
+    const tileInformation = getTileInformation({ tiles, tile })
 
-    setEstimationInformation({
-      closestTileIdentifier,
-      shouldGoBefore: shouldVisuallyGoBefore,
-      shouldGoLeft: shouldVisuallyGoLeft,
-      shouldGoRight: shouldVisuallyGoRight,
-    });
+    console.log(tileInformation?.placementStrategy)
+
+    if (!tileInformation) return;
+
+    setEstimationInformation(tileInformation);
   }, [tiles])
+
+  /***** GENERATORS *****/
+  const generateGroupInjectionProps = (id: string) => ({
+    start: estimationInformation.placementStrategy === 'block' && id === estimationInformation.group?.identifier && estimationInformation.direction === 'top',
+    end: estimationInformation.placementStrategy === 'block' && id === estimationInformation.group?.identifier && estimationInformation.direction === 'bottom',
+    key: `${id}-InjectElementIntoJSX`,
+    element: <div style={styles.horizontalLine} />
+  })
+
+  const generateTileInjectionProps = (tile: { identifier: string }) => ({
+    start: estimationInformation.placementStrategy === 'inline' && tile.identifier === estimationInformation.closestTile?.identifier && estimationInformation.direction === 'left',
+    end: estimationInformation.placementStrategy === 'inline' && tile.identifier === estimationInformation.closestTile?.identifier && estimationInformation.direction === 'right',
+    key: `${tile.identifier}-InjectElementIntoJSX`,
+    element: <div style={styles.verticalLine} />
+  })
 
   const styles = {
     container: {
@@ -159,26 +168,12 @@ function App() {
     registerRef: registerTile
   }
 
-  const generateGroupInjectionProps = (group: TileHelpers.TTileObject[], id: string) => ({
-    start: group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight,
-    end: group.some(tile => tile.identifier === estimationInformation.closestTileIdentifier) && !estimationInformation.shouldGoBefore && !estimationInformation.shouldGoLeft && !estimationInformation.shouldGoRight,
-    key: `${id}-InjectElementIntoJSX`,
-    element: <div style={styles.horizontalLine} />
-  })
-
-  const generateTileInjectionProps = (tile: { identifier: string }) => ({
-    start: tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoLeft,
-    end: tile.identifier === estimationInformation.closestTileIdentifier && estimationInformation.shouldGoRight,
-    key: `${tile.identifier}-InjectElementIntoJSX`,
-    element: <div style={styles.verticalLine} />
-  })
-
   /***** RENDER *****/
   return (
     <div style={styles.container}>
       <TileContext.Provider value={contextValues}>
         {tiles.map(({ tiles: group, identifier: groupID }) => (
-          <InjectElementIntoJSX {...generateGroupInjectionProps(group, groupID)}>
+          <InjectElementIntoJSX {...generateGroupInjectionProps(groupID)}>
             <div ref={registerGroup(groupID)} key={groupID} style={styles.TileGroup}>
               {group.map(({ identifier, style }) => (
                 <InjectElementIntoJSX {...generateTileInjectionProps({ identifier })}>

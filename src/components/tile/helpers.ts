@@ -1,4 +1,5 @@
 import React from "react"
+import { _helpers } from "../../App"
 
 export namespace TileHelpers {
   /**
@@ -7,9 +8,8 @@ export namespace TileHelpers {
    */
   export type TTileObject = {
     name: 'tile',
-    ref: React.MutableRefObject<HTMLDivElement> | null,
+    ref: React.MutableRefObject<HTMLDivElement | undefined>,
     identifier: string,
-    position: 'inline' | 'block',
     style: React.CSSProperties
   }
 
@@ -36,7 +36,7 @@ export namespace TileHelpers {
   }
 
   export type TGetRearrangedTiles = (options: {
-    tile: Readonly<TTileObject> | undefined, 
+    tile: Readonly<TEnhancedTile> | undefined, 
     tiles: Readonly<Array<TTileGroup>>,
   }) => Array<TTileGroup>;
 
@@ -82,20 +82,27 @@ export namespace TileHelpers {
   }) => Array<TTileObject>;
 
   /**********************************************************************************************************************/
+
+  type TBlockReturnType = {
+    placementStrategy: 'block',
+    direction: 'top' | 'bottom',
+    group: TTileGroup,
+  };
+
+  type TInlineReturnType = {
+    placementStrategy: 'inline',
+    direction: 'left' | 'right',
+    group: TTileGroup,
+    closestTile: TTileObject,
+  };
+
   /**
    * If there is no need to perform a reorder, simply return the existing tiles array
    */
   export type TGetTileInformation = (options: { 
     tiles: Readonly<Array<TTileGroup>>, 
     tile: Readonly<TEnhancedTile> 
-  }) => {
-    tiles: Readonly<Array<TTileGroup>>,
-    tile: TTileObject
-    shouldVisuallyGoBefore: boolean,
-    shouldVisuallyGoRight: boolean,
-    shouldVisuallyGoLeft: boolean,
-    closestTileIdentifier: string,
-  };
+  }) => TBlockReturnType | TInlineReturnType | null;
 
   /**********************************************************************************************************************/
 
@@ -138,30 +145,49 @@ export namespace TileHelpers {
   export type TGetClosestGroup = (options: { 
     tiles: Readonly<Array<TTileGroup>>,
     tile: Readonly<TEnhancedTile>,
-  }) => string;
+    /**
+     * The threshold before a tile is considered to be "inline" to the group vs "block". Measurement in pixels
+     * 
+     * i.e. If top and bottom are set to 20, then in order for an item to be getting dragged inline, it must be more than 20 pixels away from the top and bottom of the group
+     */
+    threshold: {
+      top: number,
+      bottom: number,
+      left: number,
+      right: number,
+    }
+  }) => {
+    group: TTileGroup & { 
+      middle: { 
+        x: number, 
+        y: number 
+      } 
+    } | undefined,
+    placementStrategy: 'inline' | 'block',
+    direction: 'top' | 'bottom',
+  };
 
-  export type TGetIdentifierClosestToHorizontalMiddle = (options: {
-    verticleMiddleIdentifier: string,
-    tiles: Readonly<Array<TTileObject>>,
-    nodeMiddle: {
-      x: number,
-      y: number,
+  export type TGetClosestTile = (options: {
+    group: TTileGroup & {
+      middle: {
+        x: number,
+        y: number,
+      }
     },
-    nodeIndex: number,
-  }) => string;
+    tile: Readonly<TEnhancedTile>
+  }) => {
+    direction: 'left' | 'right',
+    tile?: TTileObject & {
+      middle: {
+        x: number,
+        y: number,
+      }
+    }
+  };
 }
 
 export const findByIdentifier = <T extends Record<string, unknown> & { identifier: string }>(tiles: Readonly<Array<T>> , identifier: string) => {
   return tiles?.find(({ identifier: _identifier }) => _identifier === identifier);
-};
-
-export const findEditableByIdentifier = <T>(tiles: Array<T & { identifier: string }>, identifier: string) => {
-  return tiles?.find(({ identifier: _identifier }) => _identifier === identifier);
-}
-
-
-const getTileIndex = (tiles: Readonly<TileHelpers.TTileObject[]> , identifier: string) => {
-  return tiles.findIndex(({ identifier: _identifier }) => _identifier === identifier);
 };
 
 export const getOverlappingInformation: TileHelpers.TGetOverlappingInformation = (tile, tiles) => {
@@ -205,14 +231,6 @@ export const getOverlappingInformation: TileHelpers.TGetOverlappingInformation =
   return information;
 }
 
-const getInsertIndex: TileHelpers.TGetInsertIndex = (interceptingIndex, isBefore, isMovingBefore) => {
-  if (isBefore) {
-    return isMovingBefore ? interceptingIndex - 1 : interceptingIndex;
-  } else {
-    return isMovingBefore ? interceptingIndex : interceptingIndex + 1;
-  }
-}
-
 export const getEnhancedTile: TileHelpers.TGetEnhancedTile = ({ tiles, offset, identifier }) => {
   const { tile, group } = findTileAndGroup(tiles, identifier);
   const node = tile?.ref?.current;
@@ -235,6 +253,9 @@ export const getEnhancedTile: TileHelpers.TGetEnhancedTile = ({ tiles, offset, i
   }
 }
 
+/**
+ * Done
+ */
 export const findTileAndGroup = (tiles: Array<TileHelpers.TTileGroup>, identifier: string) => {
   const identifierCallback = (identifier: string) => (tile: TileHelpers.TTileObject) => tile.identifier === identifier;
   const group = tiles.find(({ tiles }) => tiles.some(identifierCallback(identifier)));
@@ -243,168 +264,94 @@ export const findTileAndGroup = (tiles: Array<TileHelpers.TTileGroup>, identifie
   return { group, tile };
 };
 
-const getClosestGroup: TileHelpers.TGetClosestGroup = ({ tiles, tile }) => {
-  const middleOfNodes = tiles.map(({ ref, identifier }, index) => ({
-    middle: ref!.current!.offsetTop + (Number(ref?.current?.offsetHeight) / 2),
-    index,
-    identifier,
-  }))
-  .sort((a, b) => Math.abs(nodeMiddle - a.middle) - Math.abs(nodeMiddle - b.middle))
-  .filter(({ index }) => index !== nodeIndex);
-
-  return middleOfNodes[0].identifier;
-}
-
-const getIdentifierClosestToHorizontalMiddle: TileHelpers.TGetIdentifierClosestToHorizontalMiddle = ({ verticleMiddleIdentifier, tiles, nodeMiddle, nodeIndex }) => {
-  const verticleMiddleTile = tiles.find(({ identifier }) => identifier === verticleMiddleIdentifier)!;
-
-  //if it's block then we can do the check on just this block
-  if (verticleMiddleTile.position === 'block') {
-    return verticleMiddleTile.identifier;
-  }
-
-  //Inline nodes are a little more complicated, we need to find the closest horizontal middle
-  const getInlineNodesToLeft = (index: number) => {
-    const leftNodes = [];
-    for (let i = index - 1; i >= 0; i--) {
-      const node = tiles[i];
-      if (node.position === 'block') {
-        break;
-      }
-      leftNodes.push(node);
+/**
+ * Done
+ */
+const getClosestGroup: TileHelpers.TGetClosestGroup = ({ tiles, tile, threshold }) => {
+  const { y } = tile.center;
+  const injectMiddle = (group: TileHelpers.TTileGroup) => ({
+    ...group,
+    middle: {
+      y: Number(group.ref.current?.offsetTop) + (Number(group.ref.current?.offsetHeight) / 2),
+      x: Number(group.ref.current?.offsetLeft) + (Number(group.ref.current?.offsetWidth) / 2),
     }
+  });
+  const sortToClosest = ({ middle: a }: ReturnType<typeof injectMiddle>, { middle: b }: ReturnType<typeof injectMiddle>) => Math.abs(y - a.y) - Math.abs(y - b.y);
+  const isWithinThreshold = (closestGroup: ReturnType<typeof injectMiddle> | undefined) => 
+    tile.center.y > Number(closestGroup?.ref.current?.offsetTop) + threshold.top && 
+    tile.center.y < Number(closestGroup?.ref.current?.offsetTop) + Number(closestGroup?.ref.current?.offsetHeight) - threshold.bottom &&
+    tile.center.x > Number(closestGroup?.ref.current?.offsetLeft) + threshold.left &&
+    tile.center.x < Number(closestGroup?.ref.current?.offsetLeft) + Number(closestGroup?.ref.current?.offsetWidth) - threshold.right;
 
-    return leftNodes;
+  const [closestGroup] = tiles.map(injectMiddle).sort(sortToClosest);
+
+  return {
+    group: closestGroup,
+    placementStrategy: isWithinThreshold(closestGroup) ? 'inline' : 'block',
+    direction: Number(closestGroup?.middle.y) > y ? 'top' : 'bottom',
   }
+}
 
-  const getInlineNodesToRight = (index: number) => {
-    const rightNodes = [];
-    for (let i = index + 1; i < tiles.length; i++) {
-      const node = tiles[i];
-      if (node.position === 'block') {
-        break;
-      }
-      rightNodes.push(node);
+/**
+ * Done
+ */
+const getClosestTile: TileHelpers.TGetClosestTile = ({ group, tile }) => {
+  // filter out the tile that is being moved
+  const tiles = group.tiles.filter(({ identifier }) => identifier !== tile.identifier);
+
+  // find the closest tile in group
+  const { x } = tile.center;
+  const injectMiddle = (tile: TileHelpers.TTileObject) => ({
+    ...tile,
+    middle: {
+      x: Number(tile.ref.current?.offsetLeft) + (Number(tile.ref.current?.offsetWidth) / 2),
+      y: Number(tile.ref.current?.offsetTop) + (Number(tile.ref.current?.offsetHeight) / 2),
     }
+  });
+  const sortToClosest = ({ middle: a }: ReturnType<typeof injectMiddle>, { middle: b }: ReturnType<typeof injectMiddle>) => Math.abs(x - a.x) - Math.abs(x - b.x);
 
-    return rightNodes;
+  const [closestTile] = tiles.map(injectMiddle).sort(sortToClosest);
+
+  return {
+    direction: Number(closestTile?.middle.x) < x ? 'right' : 'left',
+    tile: closestTile
   }
-
-  const inlineGroup = [...getInlineNodesToLeft(nodeIndex), verticleMiddleTile, ...getInlineNodesToRight(nodeIndex)];
-
-  //now we can check the inlineGroup to find the closest horizontal middle
-  const middleOfNodes = inlineGroup.map(({ ref, identifier }, index) => ({
-    middle: ref!.current!.offsetLeft + (Number(ref?.current?.offsetWidth) / 2),
-    index,
-    identifier,
-  }))
-    .sort((a, b) => Math.abs(nodeMiddle.x - a.middle) - Math.abs(nodeMiddle.x - b.middle))
-    .filter(({ index }) => index !== nodeIndex);
-
-  return middleOfNodes[0].identifier;
 }
 
-const getShouldGoBefore: TileHelpers.TGetShouldGoBefore = ({ identifiers, tiles, nodeMiddle }) => {
-  //get tile ref
-  const node = findByIdentifier(tiles, identifiers.vertical)!.ref!.current!;
-  const interceptingNodeMiddle = node.offsetTop + (node.offsetHeight / 2);
-
-  return nodeMiddle.y < interceptingNodeMiddle;
-}
-
-const getShouldGoRight: TileHelpers.TGetShouldGoRight= ({ identifiers, tiles, nodeMiddle }) => {
-  const interceptingTile = findByIdentifier(tiles, identifiers.horizontal);
-  const interceptingNode = interceptingTile!.ref!.current!;
-  const interceptingNodeMiddleHorizontal = interceptingNode.offsetLeft + (interceptingNode.offsetWidth / 2);
-
-  // interceptingNode.style.backgroundColor = 'red';
-
-  // if the nodeMiddle is in the right 20% then return true
-  if (nodeMiddle.x > interceptingNodeMiddleHorizontal + (interceptingNode.offsetWidth * 0.3)) {
-    return true;
-  }
-
-  return false;
-};
-
-const getShouldGoLeft: TileHelpers.TGetShouldGoRight = ({ identifiers, tiles, nodeMiddle }) => {
-  const interceptingTile = findByIdentifier(tiles, identifiers.horizontal);
-  const interceptingNode = interceptingTile!.ref!.current!;
-  const interceptingNodeMiddleHorizontal = interceptingNode.offsetLeft + (interceptingNode.offsetWidth / 2);
-
-  // interceptingNode.style.backgroundColor = 'green';
-
-  // if the nodeMiddle is in the left 20% then return true
-  if (nodeMiddle.x < interceptingNodeMiddleHorizontal - (interceptingNode.offsetWidth * 0.3)) {
-    return true;
-  }
-
-  return false;
-}
-
-const reorder: TileHelpers.TReorder = ({ closestTileIdentifier, shouldVisuallyGoBefore, shouldVisuallyGoRight, shouldVisuallyGoLeft, tiles, nodeIndex }) => {
-  const newTiles = [...tiles];
-  const closestTileIndex = getTileIndex(newTiles, closestTileIdentifier);
-  const isTileIndexBeforeInterceptingIndex = nodeIndex < closestTileIndex;
-  const closestTile = newTiles[closestTileIndex];
-  const removed = newTiles.splice(nodeIndex, 1)[0];
-
-  console.log('shouldVisuallyGoRight', shouldVisuallyGoRight)
-  console.log('shouldVisuallyGoRight: ', shouldVisuallyGoLeft)
-
-  if (shouldVisuallyGoRight || shouldVisuallyGoLeft) {
-    removed.position = 'inline';
-    closestTile.position = 'inline';
-  } else {
-    removed.position = 'block';
-  }
-
-  const getIsGoingBefore = () => {
-    if (shouldVisuallyGoRight) {
-      return false;
-    } else {
-      return shouldVisuallyGoLeft || shouldVisuallyGoBefore;
-    }
-  }
-
-  const insertIndex = getInsertIndex(closestTileIndex, isTileIndexBeforeInterceptingIndex, getIsGoingBefore());
-  newTiles.splice(insertIndex, 0, removed);
-
-  return newTiles;
-}
-
+/**
+ * Done
+ */
 export const getTileInformation: TileHelpers.TGetTileInformation = ({ tiles, tile }) => {
-  const { center } = tile;
-
-
-  const closestVerticalTileIdentifier = getClosestGroup({ tiles, tile });
-
-  const closestTileIdentifier = getIdentifierClosestToHorizontalMiddle({ 
-    verticleMiddleIdentifier: closestVerticalTileIdentifier, 
+  const { group, placementStrategy, direction } = getClosestGroup({ 
     tiles, 
-    nodeMiddle, 
-    nodeIndex 
+    tile, 
+    threshold: {
+      top: 20,
+      bottom: 20,
+      left: 0,
+      right: 0
+    } 
   });
 
-  const options = {
-    identifiers: {
-      vertical: closestVerticalTileIdentifier,
-      horizontal: closestTileIdentifier,
-    },
-    tiles,
-    tile
+  if (!group) return null;
+
+  if (placementStrategy === 'block') {
+    return {
+      placementStrategy: 'block',
+      direction,
+      group
+    }
   }
 
-  const shouldVisuallyGoBefore = getShouldGoBefore(options);
-  const shouldVisuallyGoRight = getShouldGoRight(options);
-  const shouldVisuallyGoLeft = getShouldGoLeft(options);
+  const { direction: directionFromTile, tile: closestTile } = getClosestTile({ group, tile });
 
-  return { 
-    ...options,
-    shouldVisuallyGoBefore, 
-    shouldVisuallyGoRight,
-    shouldVisuallyGoLeft,
-    closestTileIdentifier
+  if (!closestTile) return null;
+
+  return {
+    placementStrategy: 'inline',
+    direction: directionFromTile,
+    group,
+    closestTile,
   }
 }
 
@@ -412,8 +359,63 @@ export const getRearrangedTiles: TileHelpers.TGetRearrangedTiles = ({
   tile,
   tiles,
 }) => {
-  getTileInformation({ tiles, ...getEnhancedTile(tile, tiles, offset) });
+  const originalTiles = [...tiles];
+  const newTiles = [...tiles];
 
-  return tiles;
+  if (!tile) return originalTiles;
+  const tileInformation = getTileInformation({ tiles: newTiles, tile });
+
+  if (!tileInformation) return originalTiles;
+
+  const { group: selectedTileGroup } = findTileAndGroup(newTiles, tile.identifier);
+  if (!selectedTileGroup) return originalTiles;
+
+  const index = selectedTileGroup.tiles.findIndex(({ identifier }) => identifier === tile.identifier);
+  if (index === -1) return originalTiles;
+
+  const [removed] = selectedTileGroup.tiles.splice(index, 1);
+
+  if (!removed) return originalTiles;
+
+  // if it is inline, this means it needs to go into a new group below or above
+  if (tileInformation?.placementStrategy === 'block') {
+    const groupIndex = newTiles.findIndex(({ identifier }) => identifier === selectedTileGroup.identifier);
+    if (groupIndex === -1) return originalTiles;
+
+    if (tileInformation.direction === 'top') {
+      //insert before group
+      newTiles.splice(groupIndex, 0, {
+        identifier: _helpers.generateUniqueIdentifier(),
+        name: 'group',
+        ref: { current: undefined },
+        tiles: [removed]
+      });
+    } else {
+      //insert after group
+      newTiles.splice(groupIndex + 1, 0, {
+        identifier: _helpers.generateUniqueIdentifier(),
+        name: 'group',
+        ref: { current: undefined },
+        tiles: [removed]
+      });
+    }
+
+    return newTiles;
+  }
+  
+  const { closestTile, direction, group } = tileInformation;
+
+  const closestTileIndex = group.tiles.findIndex(({ identifier }) => identifier === closestTile.identifier);
+  if (closestTileIndex === -1) return originalTiles;
+
+  if (direction === 'left') {
+    group.tiles.splice(closestTileIndex, 0, removed);
+  }
+
+  if (direction === 'right') {
+    group.tiles.splice(closestTileIndex + 1, 0, removed);
+  }
+
+  return newTiles;
 };
 
