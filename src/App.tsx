@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Tile } from './components/tile'
 import { TileHelpers, findByIdentifier, getEnhancedTile, getRearrangedTiles, getTileInformation } from './components/tile/helpers';
 import { InjectElementIntoJSX } from './components/InjectElementIntoJSX';
@@ -22,12 +22,10 @@ const TileContext = React.createContext<{
   tiles: Array<TileHelpers.TTileGroup>,
   handleTileMove: (identifier: string, offset: { x: number, y: number }) => void,
   handleTileDrop: TCompleteTileDrag,
-  registerRef: TUpdateTileInformation,
 }>({
   tiles: [],
   handleTileMove: emptyFunction,
   handleTileDrop: emptyFunction,
-  registerRef: emptyHOF,
 });
 
 export const useTileContext = () => React.useContext(TileContext);
@@ -69,11 +67,11 @@ function App() {
     direction: null,
     placementStrategy: null,
   });
-  const [tiles, setTiles] = useState<Array<TileHelpers.TTileGroup>>(_helpers.generateXEmptyTiles(20));
+  const [groups, setGroups] = useState<Array<TileHelpers.TTileGroup>>(_helpers.generateXEmptyTiles(20));
 
   /***** FUNCTIONS *****/
   const registerTile = useCallback<TUpdateTileInformation>((groupID, tileID) => (tile) => {
-    const group = findByIdentifier(tiles, groupID);
+    const group = findByIdentifier(groups, groupID);
 
     if (!group) return;
 
@@ -82,44 +80,45 @@ function App() {
     if (!tileObject || !tileObject.ref || !tile) return;
 
     tileObject.ref.current = tile;
-  }, [tiles]);
+  }, [groups]);
 
   const registerGroup = useCallback<TUpdateGroupInformation>((groupID) => (group) => {
-    const groupObject = findByIdentifier(tiles, groupID);
+    const groupObject = findByIdentifier(groups, groupID);
 
     if (!groupObject || !groupObject.ref || !group) return;
 
     groupObject.ref.current = group;
-  }, [tiles]);
+  }, [groups]);
 
-  const handleTileDrop = useCallback<TCompleteTileDrag>(({ identifier, offset }) => {
-    const tile = getEnhancedTile({ tiles, identifier, offset, });
+  const handleTileDrop: TCompleteTileDrag = ({ identifier, offset }) => {
+    const rearranged = getRearrangedTiles({ 
+      tile: getEnhancedTile({ tiles: groups, identifier, offset }), 
+      tiles: groups
+    });
 
-    setTiles((tiles) => getRearrangedTiles({ tile, tiles }));
+    setGroups(rearranged);
     setEstimationInformation({
       group: null,
       direction: null,
       placementStrategy: null,
     });
-  }, []);
+  }
 
   const handleTileMove = useCallback<handleTileMove>((tileIdentifier, offset) => {
     const tile = getEnhancedTile({
-      tiles,
+      tiles: groups,
       identifier: tileIdentifier,
       offset,
     });
 
     if (!tile) return;
 
-    const tileInformation = getTileInformation({ tiles, tile })
-
-    console.log(tileInformation?.placementStrategy)
+    const tileInformation = getTileInformation({ tiles: groups, tile })
 
     if (!tileInformation) return;
 
     setEstimationInformation(tileInformation);
-  }, [tiles])
+  }, [groups])
 
   /***** GENERATORS *****/
   const generateGroupInjectionProps = (id: string) => ({
@@ -161,21 +160,19 @@ function App() {
   }
 
   const contextValues = {
-    tiles: tiles,
-    setTiles: setTiles,
+    tiles: groups,
     handleTileDrop,
-    handleTileMove,
-    registerRef: registerTile
+    handleTileMove
   }
 
   /***** RENDER *****/
   return (
     <div style={styles.container}>
       <TileContext.Provider value={contextValues}>
-        {tiles.map(({ tiles: group, identifier: groupID }) => (
+        {groups.map(({ tiles, identifier: groupID }) => (
           <InjectElementIntoJSX {...generateGroupInjectionProps(groupID)}>
             <div ref={registerGroup(groupID)} key={groupID} style={styles.TileGroup}>
-              {group.map(({ identifier, style }) => (
+              {tiles.map(({ identifier, style }) => (
                 <InjectElementIntoJSX {...generateTileInjectionProps({ identifier })}>
                   <Tile
                     key={identifier}

@@ -374,17 +374,16 @@ export const getRearrangedTiles: TileHelpers.TGetRearrangedTiles = ({
   if (index === -1) return originalTiles;
 
   const [removed] = selectedTileGroup.tiles.splice(index, 1);
-
   if (!removed) return originalTiles;
 
   // if it is inline, this means it needs to go into a new group below or above
   if (tileInformation?.placementStrategy === 'block') {
-    const groupIndex = newTiles.findIndex(({ identifier }) => identifier === selectedTileGroup.identifier);
-    if (groupIndex === -1) return originalTiles;
+    const newGroupIndex = newTiles.findIndex(({ identifier }) => identifier ===  tileInformation.group.identifier);
+    if (newGroupIndex === -1) return originalTiles;
 
     if (tileInformation.direction === 'top') {
       //insert before group
-      newTiles.splice(groupIndex, 0, {
+      newTiles.splice(newGroupIndex, 0, {
         identifier: _helpers.generateUniqueIdentifier(),
         name: 'group',
         ref: { current: undefined },
@@ -392,12 +391,18 @@ export const getRearrangedTiles: TileHelpers.TGetRearrangedTiles = ({
       });
     } else {
       //insert after group
-      newTiles.splice(groupIndex + 1, 0, {
+      newTiles.splice(newGroupIndex + 1, 0, {
         identifier: _helpers.generateUniqueIdentifier(),
         name: 'group',
         ref: { current: undefined },
         tiles: [removed]
       });
+    }
+
+    //remove original group if empty
+    if (tile.group.tiles.length === 0) {
+      const groupIndex = newTiles.findIndex(({ identifier }) => identifier === tile.group.identifier);
+      if (groupIndex !== -1) newTiles.splice(groupIndex, 1);
     }
 
     return newTiles;
@@ -414,6 +419,12 @@ export const getRearrangedTiles: TileHelpers.TGetRearrangedTiles = ({
 
   if (direction === 'right') {
     group.tiles.splice(closestTileIndex + 1, 0, removed);
+  }
+
+  //remove original group if empty
+  if (tile.group.tiles.length === 0) {
+    const groupIndex = newTiles.findIndex(({ identifier }) => identifier === tile.group.identifier);
+    if (groupIndex !== -1) newTiles.splice(groupIndex, 1);
   }
 
   return newTiles;
