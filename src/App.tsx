@@ -90,7 +90,7 @@ function App() {
     groupObject.ref.current = group;
   }, [groups]);
 
-  const handleTileDrop: TCompleteTileDrag = ({ identifier, offset }) => {
+  const handleTileDrop = useCallback<TCompleteTileDrag>(({ identifier, offset }) => {
     const rearranged = getRearrangedTiles({ 
       tile: getEnhancedTile({ tiles: groups, identifier, offset }), 
       tiles: groups
@@ -102,7 +102,7 @@ function App() {
       direction: null,
       placementStrategy: null,
     });
-  }
+  }, [groups]);
 
   const handleTileMove = useCallback<handleTileMove>((tileIdentifier, offset) => {
     const tile = getEnhancedTile({
