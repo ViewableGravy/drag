@@ -65,6 +65,8 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
     ref.current!.style.left = '';
     ref.current!.style.top = '';
     ref.current!.style.backgroundColor = color;
+    ref.current!.style.width = '100%';
+    ref.current!.style.height = '';
   }
    
   return {

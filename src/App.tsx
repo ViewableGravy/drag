@@ -16,7 +16,7 @@ type TUpdateGroupInformation = (groupIdentifier: string) => (group: HTMLDivEleme
 type handleTileMove = (identifier: string, offset: { x: number, y: number }) => void;
 
 const emptyFunction = () => {};
-const emptyHOF = () => emptyFunction;
+const generateRef = <T,>(initial?: T) => ({ current: initial ?? undefined } satisfies React.MutableRefObject<T | undefined>)
 
 const TileContext = React.createContext<{
   tiles: Array<TileHelpers.TTileGroup>,
@@ -38,17 +38,16 @@ export const _helpers = {
     return Array(x).fill(null).map(() => ({
       name: 'group',
       identifier: _helpers.generateUniqueIdentifier(),
-      ref: { current: undefined } satisfies React.MutableRefObject<HTMLDivElement | undefined>,
+      ref: generateRef(),
       tiles: [{
         name: 'tile',
-        ref:  { current: undefined } satisfies React.MutableRefObject<HTMLDivElement | undefined>,
+        ref:  generateRef(),
         identifier: _helpers.generateUniqueIdentifier(),
         style: {
           minHeight: _helpers.generateMinHeightWithinRange(60, 300) + 'px',
           backgroundColor: _helpers.generateRandomColor()
-        } satisfies React.CSSProperties,
+        },
       }]
-      
     }) satisfies TileHelpers.TTileGroup); 
   }
 }
