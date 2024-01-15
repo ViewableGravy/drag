@@ -1,19 +1,27 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Tile } from './components/tile'
 import { TileHelpers, findByIdentifier, getEnhancedTile, getRearrangedTiles, getTileInformation } from './components/tile/helpers';
 import { InjectElementIntoJSX } from './components/InjectElementIntoJSX';
 
-type TCompleteTileDrag = (props: {
-  identifier: string,
-  offset: {
-    x: number,
-    y: number,
-  }
-}) => void;
+namespace App {
+  export type TCompleteTileDrag = (props: {
+    identifier: string,
+    offset: {
+      x: number,
+      y: number,
+    }
+  }) => void;
 
-type TUpdateTileInformation = (groupIdentifier: string, tileIdentifier: string) => (tile: HTMLDivElement | null) => void;
-type TUpdateGroupInformation = (groupIdentifier: string) => (group: HTMLDivElement | null) => void;
-type handleTileMove = (identifier: string, offset: { x: number, y: number }) => void;
+  export type TUpdateTileInformation = (groupIdentifier: string, tileIdentifier: string) => (tile: HTMLDivElement | null) => void;
+  export type TUpdateGroupInformation = (groupIdentifier: string) => (group: HTMLDivElement | null) => void;
+  export type handleTileMove = (identifier: string, offset: { x: number, y: number }) => void;
+  export type TEstimationInformation = {
+    group: TileHelpers.TTileGroup | null,
+    direction: 'left' | 'right' | 'top' | 'bottom' | null,
+    closestTile?: TileHelpers.TTileObject,
+    placementStrategy: 'block' | 'inline' | null,
+  }
+}
 
 const emptyFunction = () => {};
 const generateRef = <T,>(initial?: T) => ({ current: initial ?? undefined } satisfies React.MutableRefObject<T | undefined>)
@@ -21,7 +29,7 @@ const generateRef = <T,>(initial?: T) => ({ current: initial ?? undefined } sati
 const TileContext = React.createContext<{
   tiles: Array<TileHelpers.TTileGroup>,
   handleTileMove: (identifier: string, offset: { x: number, y: number }) => void,
-  handleTileDrop: TCompleteTileDrag,
+  handleTileDrop: App.TCompleteTileDrag,
 }>({
   tiles: [],
   handleTileMove: emptyFunction,
@@ -52,16 +60,9 @@ export const _helpers = {
   }
 }
 
-type TEstimationInformation = {
-  group: TileHelpers.TTileGroup | null,
-  direction: 'left' | 'right' | 'top' | 'bottom' | null,
-  closestTile?: TileHelpers.TTileObject,
-  placementStrategy: 'block' | 'inline' | null,
-}
-
 function App() {
   /***** STATE *****/
-  const [estimationInformation, setEstimationInformation] = useState<TEstimationInformation>({
+  const [estimationInformation, setEstimationInformation] = useState<App.TEstimationInformation>({
     group: null,
     direction: null,
     placementStrategy: null,
@@ -69,7 +70,7 @@ function App() {
   const [groups, setGroups] = useState<Array<TileHelpers.TTileGroup>>(_helpers.generateXEmptyTiles(20));
 
   /***** FUNCTIONS *****/
-  const registerTile = useCallback<TUpdateTileInformation>((groupID, tileID) => (tile) => {
+  const registerTile = useCallback<App.TUpdateTileInformation>((groupID, tileID) => (tile) => {
     const group = findByIdentifier(groups, groupID);
 
     if (!group) return;
@@ -81,7 +82,7 @@ function App() {
     tileObject.ref.current = tile;
   }, [groups]);
 
-  const registerGroup = useCallback<TUpdateGroupInformation>((groupID) => (group) => {
+  const registerGroup = useCallback<App.TUpdateGroupInformation>((groupID) => (group) => {
     const groupObject = findByIdentifier(groups, groupID);
 
     if (!groupObject || !groupObject.ref || !group) return;
@@ -89,7 +90,7 @@ function App() {
     groupObject.ref.current = group;
   }, [groups]);
 
-  const handleTileDrop = useCallback<TCompleteTileDrag>(({ identifier, offset }) => {
+  const handleTileDrop = useCallback<App.TCompleteTileDrag>(({ identifier, offset }) => {
     const rearranged = getRearrangedTiles({ 
       tile: getEnhancedTile({ tiles: groups, identifier, offset }), 
       tiles: groups
@@ -103,7 +104,7 @@ function App() {
     });
   }, [groups]);
 
-  const handleTileMove = useCallback<handleTileMove>((tileIdentifier, offset) => {
+  const handleTileMove = useCallback<App.handleTileMove>((tileIdentifier, offset) => {
     const tile = getEnhancedTile({
       tiles: groups,
       identifier: tileIdentifier,
