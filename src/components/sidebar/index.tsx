@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import './_Sidebar.scss'
 import classNames from "classnames";
 import { useDelay } from "../../hooks/useDelay";
@@ -13,7 +13,8 @@ const _Sidebar = ({ children }: TSidebarProps) => {
     /***** STATE *****/
     const [activeOptions, setActiveOptions] = useState<string[]>([]);
     const [isHovered, setIsHovered] = React.useState(false);
-    const { initiate, clear } = useDelay(() => setIsHovered(false), 500, activeOptions.length > 0);
+    const [isOpen, setIsOpen] = React.useState(false);
+    const { initiate, clear } = useDelay(() => setIsOpen(false), 500, activeOptions.length > 0);
 
     const toggleOption = useCallback((identifier: string, active?: boolean) => {
         if (active && !activeOptions.includes(identifier)) {
@@ -24,10 +25,18 @@ const _Sidebar = ({ children }: TSidebarProps) => {
         }
     }, [activeOptions]);
 
+    /***** EFFECTS *****/
+    useEffect(() => {
+      // close sidebar if no options are active and the sidebar is not hovered
+      if (activeOptions.length === 0 && !isHovered) {
+        initiate();
+      }
+    }, [activeOptions, initiate, isHovered])
+
     /***** RENDER HELPERS *****/
     const classes = {
         Sidebar: classNames('Sidebar', {
-            'Sidebar--hovered': isHovered || activeOptions.length > 0,
+            'Sidebar--hovered': isOpen || activeOptions.length > 0,
         })
     }
 
@@ -43,9 +52,10 @@ const _Sidebar = ({ children }: TSidebarProps) => {
           className={classes.Sidebar}
           onMouseEnter={() => {
             setIsHovered(true);
+            setIsOpen(true);
             clear();
           }}
-          onMouseLeave={initiate}
+          onMouseLeave={() => { setIsHovered(false); initiate() }}
         >
           {children}
         </div>
