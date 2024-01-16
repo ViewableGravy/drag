@@ -1,0 +1,74 @@
+$transition: 0.2s cubic-bezier(0.19, 0.76, 0.26, 0.99);
+
+.Sidebar {
+    position: fixed;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #9a089f;
+    width: 30px;
+    height: 200px;
+    border-radius: 20px;
+    transition: width $transition, height $transition, border-radius $transition, padding $transition;
+
+    &--hovered {
+        padding-top: 10px;
+        border-radius: 50px;
+        width: 50px;
+        height: 300px;
+
+        .Sidebar__item {
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+    }
+
+    &__item {
+        all: unset;
+        &:focus { outline: none}
+        box-sizing: border-box;
+        width: 100%;
+        padding: 3px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: background-color $transition, color $transition, padding $transition;
+        position: relative;
+
+        & > svg {
+            transition: color $transition;
+            color: rgb(217, 217, 217);
+        }
+
+        &::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 50%;
+            background-color: rgb(135, 227, 255);
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+            transition: opacity $transition;
+            opacity: 0;
+        }
+
+        &--active, &:hover {
+            cursor: pointer;
+            & > svg {
+                color: white;
+            }
+            
+            &::after {
+                opacity: 1;
+            }
+        }
+
+        &Icon {
+            width: 100%;
+            height: 100%;
+        }
+    }
+}

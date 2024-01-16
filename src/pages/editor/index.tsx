@@ -6,9 +6,12 @@ import { TileContext } from "./context";
 import { InjectElementIntoJSX } from "../../components/InjectElementIntoJSX";
 import { Tile } from "../../components/tile";
 import './_Editor.scss';
+import { store } from "../../store";
+import { useAtom } from "jotai";
 
 export const Editor = () => {
   /***** STATE *****/
+  const [newTile, toggleNewtile] = useAtom(store.editor.newtile);
   const [estimationInformation, setEstimationInformation] = useState<N_Editor.TEstimationInformation>({
     group: null,
     direction: null,
@@ -16,9 +19,15 @@ export const Editor = () => {
   });
   const [groups, setGroups] = useState<Array<TileHelpers.TTileGroup>>(_helpers.generateXEmptyTiles(20));
 
+  const _groups = React.useMemo(() => {
+    if (!newTile) return groups;
+
+    return [ ..._helpers.generateXEmptyTiles(1), ...groups]
+  }, [newTile, groups]);
+
   /***** FUNCTIONS *****/
   const registerTile = useCallback<N_Editor.TUpdateTileInformation>((groupID, tileID) => (tile) => {
-    const group = findByIdentifier(groups, groupID);
+    const group = findByIdentifier(_groups, groupID);
 
     if (!group) return;
 
@@ -27,20 +36,20 @@ export const Editor = () => {
     if (!tileObject || !tileObject.ref || !tile) return;
 
     tileObject.ref.current = tile;
-  }, [groups]);
+  }, [_groups]);
 
   const registerGroup = useCallback<N_Editor.TUpdateGroupInformation>((groupID) => (group) => {
-    const groupObject = findByIdentifier(groups, groupID);
+    const groupObject = findByIdentifier(_groups, groupID);
 
     if (!groupObject || !groupObject.ref || !group) return;
 
     groupObject.ref.current = group;
-  }, [groups]);
+  }, [_groups]);
 
   const handleTileDrop = useCallback<N_Editor.TCompleteTileDrag>(({ identifier, offset }) => {
     const rearranged = getRearrangedTiles({ 
-      tile: getEnhancedTile({ tiles: groups, identifier, offset }), 
-      tiles: groups
+      tile: getEnhancedTile({ tiles: _groups, identifier, offset }), 
+      tiles: _groups
     });
 
     setGroups(rearranged);
@@ -49,23 +58,24 @@ export const Editor = () => {
       direction: null,
       placementStrategy: null,
     });
-  }, [groups]);
+    toggleNewtile(false);
+  }, [_groups]);
 
   const handleTileMove = useCallback<N_Editor.handleTileMove>((tileIdentifier, offset) => {
     const tile = getEnhancedTile({
-      tiles: groups,
+      tiles: _groups,
       identifier: tileIdentifier,
       offset,
     });
 
     if (!tile) return;
 
-    const tileInformation = getTileInformation({ tiles: groups, tile })
+    const tileInformation = getTileInformation({ tiles: _groups, tile })
 
     if (!tileInformation) return;
 
     setEstimationInformation(tileInformation);
-  }, [groups])
+  }, [_groups])
 
   /***** GENERATORS *****/
   const generateGroupInjectionProps = (id: string) => ({
@@ -90,7 +100,7 @@ export const Editor = () => {
   }), []);
 
   const contextValues = {
-    tiles: groups,
+    tiles: _groups,
     handleTileDrop,
     handleTileMove
   }
@@ -99,7 +109,7 @@ export const Editor = () => {
   return (
     <div className={classes.container}>
       <TileContext.Provider value={contextValues}>
-        {groups.map(({ tiles, identifier: groupID }) => (
+        {_groups.map(({ tiles, identifier: groupID }) => (
           <InjectElementIntoJSX {...generateGroupInjectionProps(groupID)}>
             <div ref={registerGroup(groupID)} key={groupID} className={classes.tileGroup}>
               {tiles.map(({ identifier, style }) => (
