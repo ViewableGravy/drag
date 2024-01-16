@@ -1,12 +1,15 @@
-import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import {  useTileContext } from "../../App";
+import React, { Fragment, useEffect, useMemo } from "react";
 import { useDraggable, useTileDraggableCallbacks } from "./hooks";
 import { useScrollOffsetEffect } from "../../hooks/useScrollEffect";
+import { useTileContext } from "../../pages/editor/context";
+import classNames from "classnames";
+
+import './_Tile.scss';
 
 type TTileProps = {
-  // registerRef: (tile: React.RefObject<HTMLDivElement>) => void,
   identifier: string,
   style?: React.CSSProperties,
+  className?: string,
 }
 
 const useForwardedRef = <T,>(ref: React.ForwardedRef<T>) => {
@@ -24,7 +27,8 @@ const useForwardedRef = <T,>(ref: React.ForwardedRef<T>) => {
   return innerRef;
 }
 
-export const Tile = React.forwardRef<HTMLDivElement, TTileProps>(({ identifier, style }: TTileProps, _tileRef) => {
+export const Tile = React.forwardRef<HTMLDivElement, TTileProps>(({ identifier, style, className }: TTileProps, _tileRef) => {
+  /***** STATE *****/
   const tileRef = useForwardedRef(_tileRef);
 
   const tile = useMemo(() => ({
@@ -49,26 +53,19 @@ export const Tile = React.forwardRef<HTMLDivElement, TTileProps>(({ identifier, 
     return () => tileRef.current?.removeEventListener('mousemove', callback);
   }, [tiles, onMouseMove, isDragging]);
 
-  const baseStyle: React.CSSProperties = useMemo(() => ({
-    width: '100%',
-    marginBlock: 10,
-    backgroundColor: 'white',
-    color: 'black',
-    userSelect: 'none',
-    ...style,
-    ...(isDragging && { opacity: 0.5  })
-  }), [style, isDragging])
-
-  const _style: React.CSSProperties = {
-    ...baseStyle,
-    position: isDragging ? 'absolute' : 'relative',
-    zIndex: isDragging ? 1 : undefined,
-  }
+  /***** RENDER *****/
+  const classes = useMemo(() => ({
+    tile: classNames('tile', {
+      className,
+      'tile--dragging': isDragging,
+    }),
+    staticTile: classNames('tile', 'tile__static', className),
+  }), [className, isDragging]);
 
   return (
     <Fragment>
-      <div style={_style} ref={tileRef}>{identifier}</div>
-      {isDragging && <div style={{ ..._style, position: 'relative', zIndex: undefined, backgroundColor: undefined }}/>}
+      <div className={classes.tile} style={style} ref={tileRef}>{identifier}</div>
+      {isDragging && <div className={classes.staticTile} style={{ ...style, backgroundColor: "transparent" }} />}
     </Fragment>
   )
 });

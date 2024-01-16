@@ -1,0 +1,26 @@
+.editor {
+    &__container {
+        position: relative;
+        padding: 5vw;
+        overflow: hidden
+    }
+
+    &__horizontalLine {
+        height: 2px;
+        width: 92vw;
+        background-color: lightblue;
+        margin-left: -20px;
+    }
+
+    &__verticalLine {
+        width: 2px;
+        background-color: lightblue;
+    }
+
+    &__tileGroup {
+        width: 90vw;
+        display: flex;
+        gap: 20px;
+        align-items: stretch;
+    }
+}

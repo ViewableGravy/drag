@@ -1,5 +1,5 @@
 import React from "react"
-import { _helpers } from "../../App"
+import { _helpers } from "../../pages/editor/helpers"
 
 export namespace TileHelpers {
   /**

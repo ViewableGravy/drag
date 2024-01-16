@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useTileContext } from "../../App";
+import { useTileContext } from "../../pages/editor/context";
 import { useScrollOffsetEffect } from "../../hooks/useScrollEffect";
 
 export type TDragstate = {
@@ -79,13 +79,14 @@ export const useTileDraggableCallbacks = ({ tile, color } : {
 const capitalize = <T extends string>(str: T): Capitalize<T> => str.charAt(0).toUpperCase() + str.slice(1) as Capitalize<T>;
 
 const margin = (ref: React.RefObject<HTMLDivElement>, side: 'top' | 'left' | 'right' | 'bottom' | 'inline' | 'block') => {
-  const margin = ref.current?.style[`margin${capitalize(side)}`];
+  if (!ref.current) return 0;
+
+  const margin = getComputedStyle(ref.current)[`margin${capitalize(side)}`];
   if (!margin) return 0;
 
+  //remove px
   return Number(margin.substring(0, margin.length - 2))
 }
-
-
 
 type TUseDraggable = (ref: React.RefObject<HTMLDivElement>, callbacks: {
   onDragComplete?: (state: TDragstate) => void,

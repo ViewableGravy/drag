@@ -1,0 +1,17 @@
+.tile {
+    width: 100%;
+    margin-block: 10px;
+    background-color: white;
+    color: black;
+    user-select: none;
+
+    &--dragging {
+        position: absolute;
+        z-index: 1;
+        opacity: 0.5;
+    }
+
+    &__static {
+        position: relative;
+    }
+}
