@@ -12,6 +12,7 @@
   "dependencies": {
     "@emotion/react": "^11.11.3",
     "@swc-jotai/react-refresh": "^0.1.0",
+    "@types/bun": "^1.0.2",
     "classnames": "^2.5.1",
     "jotai": "^2.6.2",
     "jotai-devtools": "^0.7.1",

@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 export function useDelay(callback: () => void, delay: number, disabled: boolean = false) {
   // Save callback and timeout id to refs so they're the same for every render
   const callbackRef = useRef(callback);
-  const timeoutIdRef = useRef<null | number>(null);
+  const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | number | null>(null);
   callbackRef.current = callback;
 
   useEffect(() => {
